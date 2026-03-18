@@ -88,6 +88,11 @@ export default function AdminDashboard() {
       <MenuRow onClick={() => navigate('shopping-lists')}>
         <span>🛒 Shopping Lists</span><span>›</span>
       </MenuRow>
+
+      <SectionLabel>Integrations</SectionLabel>
+      <MenuRow onClick={() => navigate('admin-calendars')}>
+        <span>📅 Calendar Connections</span><span>›</span>
+      </MenuRow>
     </div>
   );
 }

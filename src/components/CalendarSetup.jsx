@@ -5,7 +5,7 @@ const GREEN = '#4FA45A';
 const DARK  = '#111827';
 const API   = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-export default function CalendarSetup({ onDone }) {
+export default function CalendarSetup({ onDone, inSettings = false }) {
   const { calendarConnections } = useApp();
   const [connecting, setConnecting] = useState(false);
 
@@ -20,12 +20,21 @@ export default function CalendarSetup({ onDone }) {
 
   return (
     <div className="flex flex-col h-full p-6">
-      <div className="text-sm font-black tracking-tighter mb-8">
-        <span className="text-gray-900">aera</span><span style={{ color: GREEN }}>mea</span>
-      </div>
+      {inSettings ? (
+        <button
+          onClick={onDone}
+          className="flex items-center gap-1 text-sm text-gray-400 bg-transparent border-none cursor-pointer mb-8 self-start"
+        >
+          ← Back
+        </button>
+      ) : (
+        <div className="text-sm font-black tracking-tighter mb-8">
+          <span className="text-gray-900">aera</span><span style={{ color: GREEN }}>mea</span>
+        </div>
+      )}
 
       <div className="flex-1">
-        <div className="text-2xl font-extrabold tracking-tight mb-1">Connect your calendar</div>
+        <div className="text-2xl font-extrabold tracking-tight mb-1">Calendar Connections</div>
         <div className="text-sm text-gray-400 mb-8">
           Two-way sync keeps your family hub and personal calendars in perfect time
         </div>
@@ -92,23 +101,25 @@ export default function CalendarSetup({ onDone }) {
         </div>
       </div>
 
-      <div className="space-y-2 pt-4">
-        <button
-          onClick={onDone}
-          className="w-full font-bold py-3.5 rounded-2xl text-sm border-none cursor-pointer text-white"
-          style={{ background: GREEN }}
-        >
-          {googleConnected ? "Let's go! →" : 'Continue to hub →'}
-        </button>
-        {!googleConnected && (
+      {!inSettings && (
+        <div className="space-y-2 pt-4">
           <button
             onClick={onDone}
-            className="w-full text-sm text-gray-400 bg-transparent border-none cursor-pointer py-2 text-center"
+            className="w-full font-bold py-3.5 rounded-2xl text-sm border-none cursor-pointer text-white"
+            style={{ background: GREEN }}
           >
-            Skip for now
+            {googleConnected ? "Let's go! →" : 'Continue to hub →'}
           </button>
-        )}
-      </div>
+          {!googleConnected && (
+            <button
+              onClick={onDone}
+              className="w-full text-sm text-gray-400 bg-transparent border-none cursor-pointer py-2 text-center"
+            >
+              Skip for now
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -91,6 +91,9 @@ function Router() {
     case 'meal-form':
       return <MealForm />;
 
+    case 'admin-calendars':
+      return <CalendarSetup onDone={() => navigate('admin-dashboard')} inSettings />;
+
     case 'print-view':
       return <PrintView memberId={screenData} />;
 
