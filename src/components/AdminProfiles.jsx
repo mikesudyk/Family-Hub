@@ -1,11 +1,8 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BackButton } from './ui';
-import { FAMILY } from '../data/family';
-
-function ProfileRow({ baseId }) {
-  const { getMember, getTier, setTier, updateMember } = useApp();
-  const m = getMember(baseId);
+function ProfileRow({ member: m }) {
+  const { getTier, setTier, updateMember } = useApp();
   const tier = getTier(m);
   const isAdmin = m.role === 'admin';
   const isInfant = m.tier === 'infant';
@@ -168,6 +165,9 @@ function ProfileRow({ baseId }) {
 }
 
 export default function AdminProfiles() {
+  const { getAllMembers } = useApp();
+  const members = getAllMembers();
+
   return (
     <div className="p-5">
       <div className="flex items-center gap-2 mb-5">
@@ -176,13 +176,13 @@ export default function AdminProfiles() {
       </div>
 
       <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Parents</div>
-      {FAMILY.filter(m => m.role === 'admin').map(m => (
-        <ProfileRow key={m.id} baseId={m.id} />
+      {members.filter(m => m.role === 'admin').map(m => (
+        <ProfileRow key={m.id} member={m} />
       ))}
 
       <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-4">Children</div>
-      {FAMILY.filter(m => m.role === 'child').map(m => (
-        <ProfileRow key={m.id} baseId={m.id} />
+      {members.filter(m => m.role === 'child').map(m => (
+        <ProfileRow key={m.id} member={m} />
       ))}
     </div>
   );

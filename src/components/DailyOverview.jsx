@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { FAMILY } from '../data/family';
 import { UncheckedCircle, EmojiSelect, CHORE_EMOJIS } from './ui';
 
 export default function DailyOverview({ onClose }) {
-  const { getChores, addChore, removeChore, getMember } = useApp();
-  const kids = FAMILY.filter(m => m.role === 'child' && m.tier !== 'infant');
+  const { getChores, addChore, removeChore, getMember, getAllMembers } = useApp();
+  const kids = getAllMembers().filter(m => m.role === 'child' && m.tier !== 'infant');
 
   // Track which kid's add-form is open and the draft text/icon
   const [addingFor, setAddingFor] = useState(null);

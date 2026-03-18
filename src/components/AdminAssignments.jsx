@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BackButton, EmojiSelect, CHORE_EMOJIS } from './ui';
-import { FAMILY, CHORE_LIBRARY } from '../data/family';
+import { CHORE_LIBRARY } from '../data/family';
 
 function getChoreIcon(name, allChores) {
   const lib = CHORE_LIBRARY.find(c => c.name.toLowerCase() === name.toLowerCase());
@@ -166,8 +166,8 @@ function AddChoreRow({ kidId, allChoreNames, allChores, onAdd }) {
 }
 
 export default function AdminAssignments() {
-  const { chores, getChores, addChore, removeChore } = useApp();
-  const kids = FAMILY.filter(m => m.role === 'child' && m.tier !== 'infant');
+  const { chores, getChores, addChore, removeChore, getAllMembers } = useApp();
+  const kids = getAllMembers().filter(m => m.role === 'child' && m.tier !== 'infant');
 
   const allChores = Object.values(chores).flat();
   const allChoreNames = [...new Set([

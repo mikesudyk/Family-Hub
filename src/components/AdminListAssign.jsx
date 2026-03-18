@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BackButton } from './ui';
-import { FAMILY } from '../data/family';
-
 export default function AdminListAssign({ listId }) {
-  const { getChoreList, assignListEvent, navigate } = useApp();
+  const { getChoreList, assignListEvent, navigate, getAllMembers } = useApp();
   const list = getChoreList(listId);
-  const kids = FAMILY.filter(m => m.role === 'child' && m.tier !== 'infant');
+  const kids = getAllMembers().filter(m => m.role === 'child' && m.tier !== 'infant');
 
   // assignments[choreId] = kidId (string) or '' for unassigned
   const [assignments, setAssignments] = useState({});

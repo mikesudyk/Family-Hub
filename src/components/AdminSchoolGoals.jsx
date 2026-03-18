@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BackButton } from './ui';
-import { FAMILY } from '../data/family';
-
 function formatDueDate(dateStr) {
   if (!dateStr) return null;
   const d = new Date(dateStr + 'T00:00:00');
@@ -69,8 +67,8 @@ function AddGoalRow({ kidId, onAdd }) {
 }
 
 export default function AdminSchoolGoals() {
-  const { getGoals, addGoal, removeGoal } = useApp();
-  const kids = FAMILY.filter(m => m.role === 'child' && m.tier !== 'infant');
+  const { getGoals, addGoal, removeGoal, getAllMembers } = useApp();
+  const kids = getAllMembers().filter(m => m.role === 'child' && m.tier !== 'infant');
 
   return (
     <div className="p-5">

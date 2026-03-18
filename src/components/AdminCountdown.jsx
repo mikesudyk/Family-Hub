@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BackButton, GreenButton } from './ui';
-import { FAMILY } from '../data/family';
 
-function getNextBirthday(getMember) {
+function getNextBirthday(getMember, getAllMembers) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const kids = FAMILY.filter(m => m.role === 'child');
+  const kids = getAllMembers().filter(m => m.role === 'child');
   const upcoming = kids.map(k => {
     const m = getMember(k.id);
     if (!m.birthday) return null;
@@ -20,13 +19,13 @@ function getNextBirthday(getMember) {
 }
 
 export default function AdminCountdown() {
-  const { navigate, countdown, setCountdown, countdownMode, setCountdownMode, getMember } = useApp();
+  const { navigate, countdown, setCountdown, countdownMode, setCountdownMode, getMember, getAllMembers } = useApp();
   const [name, setName]   = useState(countdown?.name || '');
   const [date, setDate]   = useState(countdown?.date || '');
   const [emoji, setEmoji] = useState(countdown?.emoji || '');
   const [saved, setSaved] = useState(false);
 
-  const nextBirthday = getNextBirthday(getMember);
+  const nextBirthday = getNextBirthday(getMember, getAllMembers);
 
   function getDaysUntil(d) {
     const today = new Date(); today.setHours(0,0,0,0);
