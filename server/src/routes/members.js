@@ -28,21 +28,30 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   const { familyId } = req;
   const { id } = req.params;
-  const { name, avatar, tier, birthday } = req.body;
+  const { name, avatar, tier } = req.body;
+
+  const fields = [];
+  const values = [];
+  let i = 1;
+  if (name     !== undefined) { fields.push(`name = $${i++}`);     values.push(name); }
+  if (avatar   !== undefined) { fields.push(`avatar = $${i++}`);   values.push(avatar); }
+  if (tier     !== undefined) { fields.push(`tier = $${i++}`);     values.push(tier); }
+  if ('birthday' in req.body) { fields.push(`birthday = $${i++}`); values.push(req.body.birthday || null); }
+
+  if (!fields.length) return res.status(400).json({ error: 'No fields to update' });
+
+  values.push(id, familyId);
   try {
     const r = await pool.query(
-      `UPDATE family_members
-       SET name     = COALESCE($1, name),
-           avatar   = COALESCE($2, avatar),
-           tier     = COALESCE($3, tier),
-           birthday = COALESCE($4, birthday)
-       WHERE id = $5 AND family_id = $6
-       RETURNING *`,
-      [name, avatar, tier, birthday || null, id, familyId]
+      `UPDATE family_members SET ${fields.join(', ')} WHERE id = $${i} AND family_id = $${i + 1} RETURNING *`,
+      values
     );
     if (!r.rows.length) return res.status(404).json({ error: 'Member not found' });
     const m = r.rows[0];
-    const out = { id: m.id, name: m.name, avatar: m.avatar, role: m.role, tier: m.tier, birthday: m.birthday };
+    const out = {
+      id: m.id, name: m.name, avatar: m.avatar, role: m.role, tier: m.tier,
+      birthday: m.birthday ? m.birthday.toISOString().split('T')[0] : null,
+    };
     broadcast(familyId, 'member:updated', out);
     res.json(out);
   } catch (err) {

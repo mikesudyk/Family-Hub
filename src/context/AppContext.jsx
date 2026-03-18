@@ -335,6 +335,12 @@ export function AppProvider({ children }) {
     apiFetch(`/api/members/${id}`, { method: 'PUT', body: JSON.stringify(changes) }).catch(console.error);
   }
 
+  async function addMember(data) {
+    const m = await apiFetch('/api/members', { method: 'POST', body: JSON.stringify(data) });
+    setDynamicMembers(prev => [...(prev || []), m]);
+    return m;
+  }
+
   // ── Tiers ────────────────────────────────────────────────────────────────────
 
   function setTier(memberId, tier) {
@@ -832,7 +838,7 @@ export function AppProvider({ children }) {
       hubName, setHubName: v => updateSettings({ hubName: v }),
       chores, toggleChore, addChore, removeChore,
       tierOverrides, setTier, getTier,
-      memberOverrides, updateMember,
+      memberOverrides, updateMember, addMember,
       countdown, setCountdown, countdownMode, setCountdownMode,
       printMode, setPrintMode,
       getMember, getChores, doneCount, totalCount,
