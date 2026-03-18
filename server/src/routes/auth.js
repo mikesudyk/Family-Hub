@@ -205,7 +205,7 @@ router.post('/invite', async (req, res) => {
       console.log(`[invite] Link for ${email}: ${inviteUrl}`);
     }
 
-    res.json({ ok: true });
+    res.json({ ok: true, inviteUrl: process.env.EMAIL_HOST ? null : inviteUrl });
   } catch (err) {
     console.error('[invite]', err);
     res.status(500).json({ error: 'Failed to send invite' });
