@@ -12,12 +12,22 @@ const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 
 // ── GET /api/calendar/connect/google ─────────────────────────────────────────
 // Initiates Google OAuth — called by frontend via window.location redirect
-router.get('/connect/google', verifyToken, (req, res) => {
-  // Encode JWT + memberId in state so we can identify user on callback
+// Token comes as ?token= query param (browser redirect can't set headers)
+router.get('/connect/google', (req, res) => {
+  const token = req.query.token;
+  if (!token) return res.status(401).json({ error: 'No token provided' });
+
+  let payload;
+  try {
+    payload = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
+  } catch {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+
   const state = Buffer.from(JSON.stringify({
-    token:    req.headers.authorization?.slice(7),
-    memberId: req.memberId,
-    familyId: req.familyId,
+    token,
+    memberId: payload.memberId,
+    familyId: payload.familyId,
   })).toString('base64');
 
   res.redirect(getAuthUrl(state));
