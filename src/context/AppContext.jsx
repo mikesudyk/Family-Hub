@@ -345,6 +345,7 @@ export function AppProvider({ children }) {
 
   function setTier(memberId, tier) {
     setTierOverrides(prev => ({ ...prev, [memberId]: tier }));
+    apiFetch(`/api/members/${memberId}`, { method: 'PUT', body: JSON.stringify({ tier }) }).catch(console.error);
   }
 
   function getTier(member) {
