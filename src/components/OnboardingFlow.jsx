@@ -129,24 +129,10 @@ function StepYourProfile({ initialName, onNext }) {
 }
 
 // Step 3 — Invite partner
+// Note: we only collect the email here. The actual invite is sent server-side
+// during signup (completeOnboarding) once we have a valid familyId + token.
 function StepInvitePartner({ onNext }) {
-  const [email, setEmail]   = useState('');
-  const [sent, setSent]     = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  async function handleSend() {
-    if (!email.trim()) return;
-    setLoading(true);
-    try {
-      const { apiFetch } = await import('../api/client');
-      await apiFetch('/api/auth/invite', { method: 'POST', body: JSON.stringify({ email: email.trim() }) });
-    } catch {
-      // invite link logged server-side if email not configured; treat as success
-    } finally {
-      setLoading(false);
-      setSent(true);
-    }
-  }
+  const [email, setEmail] = useState('');
 
   return (
     <div>
@@ -155,41 +141,31 @@ function StepInvitePartner({ onNext }) {
         They'll get their own login and share your family hub in real time
       </div>
 
-      {sent ? (
-        <div className="bg-green-50 border border-green-100 rounded-xl px-4 py-3.5 mb-5 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 flex-shrink-0 text-sm font-bold">✓</div>
-          <div>
-            <div className="text-sm font-semibold text-green-800">Invite sent!</div>
-            <div className="text-xs text-green-600 mt-0.5">{email}</div>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-3 mb-5">
-          <input
-            autoFocus
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSend()}
-            placeholder="Partner's email address"
-            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-gray-400"
-          />
-          <button
-            onClick={handleSend}
-            disabled={!email.trim() || loading}
-            className="w-full font-bold py-3.5 rounded-2xl text-sm border-none cursor-pointer text-white disabled:opacity-30"
-            style={{ background: DARK }}
-          >
-            {loading ? 'Sending…' : 'Send Invite'}
-          </button>
-        </div>
-      )}
+      <div className="space-y-3 mb-5">
+        <input
+          autoFocus
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && onNext({ partnerEmail: email.trim() || null })}
+          placeholder="Partner's email address"
+          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-gray-400"
+        />
+        <button
+          onClick={() => onNext({ partnerEmail: email.trim() || null })}
+          disabled={!email.trim()}
+          className="w-full font-bold py-3.5 rounded-2xl text-sm border-none cursor-pointer text-white disabled:opacity-30"
+          style={{ background: DARK }}
+        >
+          Continue →
+        </button>
+      </div>
 
       <button
-        onClick={() => onNext({ partnerEmail: sent ? email : null })}
+        onClick={() => onNext({ partnerEmail: null })}
         className="w-full text-sm font-semibold text-gray-500 bg-transparent border-none cursor-pointer py-2 text-center"
       >
-        {sent ? 'Continue →' : 'Skip for now'}
+        Skip for now
       </button>
     </div>
   );

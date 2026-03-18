@@ -20,7 +20,7 @@ function makeToken(userId, familyId, memberId) {
 // ── POST /api/auth/signup ─────────────────────────────────────────────────────
 // Creates account + family + seeds default data
 router.post('/signup', async (req, res) => {
-  const { name, email, password, familyName, parentAvatar = '👨', kids = [] } = req.body;
+  const { name, email, password, familyName, parentAvatar = '👨', kids = [], partnerEmail } = req.body;
   if (!name || !email || !password || !familyName) {
     return res.status(400).json({ error: 'name, email, password, and familyName are required' });
   }
@@ -92,8 +92,42 @@ router.post('/signup', async (req, res) => {
 
     await client.query('COMMIT');
 
+    // Send partner invite if provided
+    let inviteUrl = null;
+    if (partnerEmail) {
+      try {
+        const inviteToken = crypto.randomBytes(32).toString('hex');
+        await pool.query(
+          'INSERT INTO invites (family_id, email, token) VALUES ($1,$2,$3)',
+          [familyId, partnerEmail.toLowerCase(), inviteToken]
+        );
+        inviteUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/invite/${inviteToken}`;
+
+        if (process.env.EMAIL_HOST) {
+          const transporter = nodemailer.createTransport({
+            host: process.env.EMAIL_HOST,
+            port: Number(process.env.EMAIL_PORT) || 587,
+            auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+          });
+          await transporter.sendMail({
+            from: process.env.EMAIL_FROM || 'noreply@aeramea.com',
+            to: partnerEmail,
+            subject: "You've been invited to join a family hub on Aeramea",
+            html: `<p>You've been invited to join a family hub on <strong>Aeramea</strong>.</p>
+                   <p><a href="${inviteUrl}">Click here to accept your invite</a></p>
+                   <p>This link expires in 7 days.</p>`,
+          });
+        } else {
+          console.log(`[invite] No EMAIL_HOST set. Invite link for ${partnerEmail}: ${inviteUrl}`);
+        }
+      } catch (inviteErr) {
+        console.error('[signup invite]', inviteErr.message);
+        // Non-fatal — account was created successfully
+      }
+    }
+
     const token = makeToken(userId, familyId, memberId);
-    res.status(201).json({ token, userId, familyId, memberId });
+    res.status(201).json({ token, userId, familyId, memberId, inviteUrl });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('[signup]', err);

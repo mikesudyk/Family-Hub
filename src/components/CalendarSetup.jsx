@@ -6,8 +6,15 @@ const DARK  = '#111827';
 const API   = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export default function CalendarSetup({ onDone, inSettings = false }) {
-  const { calendarConnections } = useApp();
+  const { calendarConnections, pendingInviteUrl, setPendingInviteUrl } = useApp();
   const [connecting, setConnecting] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  function copyInviteUrl() {
+    navigator.clipboard.writeText(pendingInviteUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   const googleConnected = calendarConnections?.some(c => c.provider === 'google' && c.connected);
 
@@ -35,9 +42,34 @@ export default function CalendarSetup({ onDone, inSettings = false }) {
 
       <div className="flex-1">
         <div className="text-2xl font-extrabold tracking-tight mb-1">Calendar Connections</div>
-        <div className="text-sm text-gray-400 mb-8">
+        <div className="text-sm text-gray-400 mb-4">
           Two-way sync keeps your family hub and personal calendars in perfect time
         </div>
+
+        {pendingInviteUrl && (
+          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 mb-4">
+            <div className="text-xs font-bold text-amber-700 mb-1">Partner invite link</div>
+            <div className="text-xs text-amber-600 mb-2">Email isn't set up yet — share this link directly with your partner:</div>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-white rounded-lg px-2.5 py-1.5 text-xs text-gray-500 font-mono truncate border border-amber-100">
+                {pendingInviteUrl}
+              </div>
+              <button
+                onClick={copyInviteUrl}
+                className="text-xs font-bold px-3 py-1.5 rounded-lg border-none cursor-pointer text-white flex-shrink-0"
+                style={{ background: copied ? '#4FA45A' : '#111827' }}
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+            <button
+              onClick={() => setPendingInviteUrl(null)}
+              className="text-xs text-amber-400 bg-transparent border-none cursor-pointer mt-2"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {/* Google */}
         <div className="bg-white border border-gray-100 rounded-2xl p-4 mb-3">

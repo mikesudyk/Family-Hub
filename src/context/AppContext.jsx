@@ -13,6 +13,7 @@ export function AppProvider({ children }) {
   const [onboardingData, setOnboardingData] = useState(null);
   const [currentMemberId, setCurrentMemberId] = useState(null);
   const [justSignedUp, setJustSignedUp]   = useState(false);
+  const [pendingInviteUrl, setPendingInviteUrl] = useState(null);
   const [calendarConnections, setCalendarConnections] = useState([]);
 
   // ── Navigation ──────────────────────────────────────────────────────────────
@@ -273,11 +274,13 @@ export function AppProvider({ children }) {
         familyName: data.familyName,
         parentAvatar: data.parentAvatar || '👨',
         kids: data.kids || [],
+        partnerEmail: data.partnerEmail || null,
       }),
     });
     setToken(result.token);
     setCurrentMemberId(result.memberId);
     setIsOnboarding(false);
+    if (result.inviteUrl) setPendingInviteUrl(result.inviteUrl);
     setJustSignedUp(true);
     await loadFamilyData(result.token);
   }
@@ -821,6 +824,7 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       authStatus, isAuthenticated, isOnboarding, onboardingData, currentMemberId,
       justSignedUp, setJustSignedUp,
+      pendingInviteUrl, setPendingInviteUrl,
       calendarConnections, setCalendarConnections,
       signIn, startOnboarding, completeOnboarding, signOut,
       getAllMembers,
