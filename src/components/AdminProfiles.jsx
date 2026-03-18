@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { BackButton } from './ui';
 import { apiFetch } from '../api/client';
 
-function InvitePartnerRow() {
+function InviteSpouseRow() {
   const [open, setOpen]       = useState(false);
   const [email, setEmail]     = useState('');
   const [status, setStatus]   = useState('idle'); // idle | sending | sent | error
@@ -38,7 +38,7 @@ function InvitePartnerRow() {
         className="w-full flex items-center gap-3 bg-white rounded-xl mb-2 px-3.5 py-3 border-none cursor-pointer text-left"
       >
         <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-xl flex-shrink-0">+</div>
-        <div className="text-sm font-semibold text-gray-400">Invite partner</div>
+        <div className="text-sm font-semibold text-gray-400">Invite spouse</div>
       </button>
     );
   }
@@ -47,7 +47,7 @@ function InvitePartnerRow() {
     <div className="bg-white rounded-xl mb-2 overflow-hidden">
       <div className="flex items-center gap-3 p-3.5">
         <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-xl flex-shrink-0">+</div>
-        <div className="flex-1 text-sm font-semibold text-gray-900">Invite partner</div>
+        <div className="flex-1 text-sm font-semibold text-gray-900">Invite spouse</div>
         <button onClick={() => setOpen(false)} className="text-gray-300 bg-transparent border-none cursor-pointer text-lg leading-none">×</button>
       </div>
 
@@ -86,7 +86,7 @@ function InvitePartnerRow() {
             value={email}
             onChange={e => setEmail(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && sendInvite()}
-            placeholder="Partner's email address"
+            placeholder="Spouse's email address"
             className="w-full bg-gray-50 rounded-lg px-3 py-2 text-sm border border-gray-200 outline-none focus:border-blue-400"
           />
           <button
@@ -279,7 +279,7 @@ export default function AdminProfiles() {
       {members.filter(m => m.role === 'admin').map(m => (
         <ProfileRow key={m.id} member={m} />
       ))}
-      {members.filter(m => m.role === 'admin').length < 2 && <InvitePartnerRow />}
+      {members.filter(m => m.role === 'admin').length < 2 && <InviteSpouseRow />}
 
       <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-4">Children</div>
       {members.filter(m => m.role === 'child').map(m => (

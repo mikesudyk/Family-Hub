@@ -128,7 +128,7 @@ function StepYourProfile({ initialName, onNext }) {
   );
 }
 
-// Step 3 — Invite partner
+// Step 3 — Invite spouse
 // Note: we only collect the email here. The actual invite is sent server-side
 // during signup (completeOnboarding) once we have a valid familyId + token.
 function StepInvitePartner({ onNext }) {
@@ -136,7 +136,7 @@ function StepInvitePartner({ onNext }) {
 
   return (
     <div>
-      <div className="text-2xl font-extrabold tracking-tight mb-1">Invite your partner</div>
+      <div className="text-2xl font-extrabold tracking-tight mb-1">Invite your spouse</div>
       <div className="text-sm text-gray-400 mb-6">
         They'll get their own login and share your family hub in real time
       </div>
@@ -148,7 +148,7 @@ function StepInvitePartner({ onNext }) {
           value={email}
           onChange={e => setEmail(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && onNext({ partnerEmail: email.trim() || null })}
-          placeholder="Partner's email address"
+          placeholder="Spouse's email address"
           className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-gray-400"
         />
         <button
