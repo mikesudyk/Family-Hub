@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { BackButton, SectionLabel, MenuRow } from './ui';
 
 export default function AdminDashboard() {
-  const { navigate, hubName, setHubName, bgImage, setBgImage } = useApp();
+  const { navigate, hubName, setHubName, bgImage, setBgImage, signOut } = useApp();
   const fileInputRef = useRef(null);
 
   function handleImageUpload(e) {
@@ -92,6 +92,11 @@ export default function AdminDashboard() {
       <SectionLabel>Integrations</SectionLabel>
       <MenuRow onClick={() => navigate('admin-calendars')}>
         <span>📅 Calendar Connections</span><span>›</span>
+      </MenuRow>
+
+      <SectionLabel>Account</SectionLabel>
+      <MenuRow onClick={signOut}>
+        <span className="text-red-500">🚪 Sign Out</span><span>›</span>
       </MenuRow>
     </div>
   );
