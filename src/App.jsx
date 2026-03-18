@@ -106,7 +106,26 @@ function AppShell() {
   const contentRef = useRef(null);
   const lastScrollY = useRef(0);
   const [navVisible, setNavVisible] = useState(true);
-  const { showDailyOverview, setShowDailyOverview } = useApp();
+  const [pullDistance, setPullDistance] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [swipeX, setSwipeX] = useState(0);
+  const touchStartY = useRef(0);
+  const touchStartX = useRef(0);
+  const pullDistanceRef = useRef(0);
+  const refreshingRef = useRef(false);
+  const swipeXRef = useRef(0);
+  const gesture = useRef(null); // 'pull' | 'swipe-back' | null
+  const { showDailyOverview, setShowDailyOverview, refresh, goBack, canGoBack } = useApp();
+  const refreshRef = useRef(refresh);
+  const goBackRef = useRef(goBack);
+  const canGoBackRef = useRef(canGoBack);
+  refreshRef.current = refresh;
+  goBackRef.current = goBack;
+  canGoBackRef.current = canGoBack;
+
+  const PTR_THRESHOLD = 70;
+  const SWIPE_THRESHOLD = 80;
+  const EDGE_ZONE = 30; // px from left edge to start swipe-back
 
   function handleScroll() {
     const el = contentRef.current;
@@ -120,9 +139,131 @@ function AppShell() {
     lastScrollY.current = curr;
   }
 
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+
+    function onTouchStart(e) {
+      touchStartY.current = e.touches[0].clientY;
+      touchStartX.current = e.touches[0].clientX;
+      gesture.current = null;
+    }
+
+    function onTouchMove(e) {
+      const dx = e.touches[0].clientX - touchStartX.current;
+      const dy = e.touches[0].clientY - touchStartY.current;
+
+      // Determine gesture on first significant movement
+      if (gesture.current === null) {
+        if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+        if (
+          dx > 0 &&
+          Math.abs(dx) > Math.abs(dy) &&
+          touchStartX.current < EDGE_ZONE &&
+          canGoBackRef.current
+        ) {
+          gesture.current = 'swipe-back';
+        } else if (dy > 0 && Math.abs(dy) > Math.abs(dx) && el.scrollTop === 0) {
+          gesture.current = 'pull';
+        } else {
+          gesture.current = 'none';
+        }
+      }
+
+      if (gesture.current === 'swipe-back') {
+        e.preventDefault();
+        const x = Math.min(Math.max(dx, 0), window.innerWidth * 0.75);
+        swipeXRef.current = x;
+        setSwipeX(x);
+      } else if (gesture.current === 'pull') {
+        if (el.scrollTop > 0) return;
+        if (dy > 0) {
+          e.preventDefault();
+          const d = Math.min(dy, PTR_THRESHOLD * 1.5);
+          pullDistanceRef.current = d;
+          setPullDistance(d);
+        }
+      }
+    }
+
+    function onTouchEnd() {
+      if (gesture.current === 'swipe-back') {
+        if (swipeXRef.current >= SWIPE_THRESHOLD) {
+          goBackRef.current();
+        }
+        swipeXRef.current = 0;
+        setSwipeX(0);
+      } else if (gesture.current === 'pull') {
+        if (pullDistanceRef.current >= PTR_THRESHOLD && !refreshingRef.current) {
+          refreshingRef.current = true;
+          setRefreshing(true);
+          pullDistanceRef.current = 0;
+          setPullDistance(0);
+          refreshRef.current().finally(() => {
+            refreshingRef.current = false;
+            setRefreshing(false);
+          });
+        } else {
+          pullDistanceRef.current = 0;
+          setPullDistance(0);
+        }
+      }
+      gesture.current = null;
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+    };
+  }, []);
+
+  const indicatorProgress = Math.min(pullDistance / PTR_THRESHOLD, 1);
+  const showIndicator = pullDistance > 0 || refreshing;
+  const swipeProgress = Math.min(swipeX / SWIPE_THRESHOLD, 1);
+
   return (
     <div className="w-full h-full sm:max-w-sm sm:h-[844px] sm:rounded-3xl md:max-w-3xl md:h-[90dvh] overflow-hidden relative" style={{ background: '#F9F5F0', boxShadow: '0 25px 60px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.2)' }}>
-      <div ref={contentRef} onScroll={handleScroll} className="absolute inset-0 overflow-y-auto pb-16">
+      {showIndicator && (
+        <div
+          className="absolute top-0 left-0 right-0 flex items-center justify-center z-50 pointer-events-none"
+          style={{ height: refreshing ? 56 : pullDistance, transition: refreshing ? 'height 0.2s' : 'none', overflow: 'hidden' }}
+        >
+          <div
+            style={{
+              width: 32, height: 32, borderRadius: '50%',
+              border: '3px solid #e2d9cf',
+              borderTopColor: '#4FA45A',
+              opacity: refreshing ? 1 : indicatorProgress,
+              transform: refreshing ? 'none' : `rotate(${indicatorProgress * 270}deg)`,
+              animation: refreshing ? 'ptr-spin 0.7s linear infinite' : 'none',
+            }}
+          />
+        </div>
+      )}
+      {swipeX > 0 && (
+        <div
+          className="absolute inset-0 z-40 pointer-events-none"
+          style={{ background: `linear-gradient(to right, rgba(0,0,0,${0.15 * swipeProgress}), transparent 40%)` }}
+        />
+      )}
+      <style>{`@keyframes ptr-spin { to { transform: rotate(360deg); } }`}</style>
+      <div
+        ref={contentRef}
+        onScroll={handleScroll}
+        className="absolute inset-0 overflow-y-auto pb-16"
+        style={{
+          transform: swipeX > 0
+            ? `translateX(${swipeX}px)`
+            : pullDistance > 0
+            ? `translateY(${pullDistance}px)`
+            : 'none',
+          transition: swipeX > 0 || pullDistance > 0 ? 'none' : 'transform 0.2s',
+        }}
+      >
         <Router />
       </div>
       <div className={`absolute bottom-0 left-0 right-0 transition-transform duration-300 ease-in-out ${navVisible ? 'translate-y-0' : 'translate-y-full'}`}>

@@ -19,6 +19,7 @@ export function AppProvider({ children }) {
   // ── Navigation ──────────────────────────────────────────────────────────────
   const [screen, setScreen]       = useState('hub');
   const [screenData, setScreenData] = useState(null);
+  const [navStack, setNavStack]   = useState([]);
 
   // ── Family data ─────────────────────────────────────────────────────────────
   const [dynamicMembers, setDynamicMembers] = useState(null);
@@ -311,9 +312,21 @@ export function AppProvider({ children }) {
   // ── Navigation ───────────────────────────────────────────────────────────────
 
   function navigate(to, data = null) {
+    setNavStack(prev => [...prev, { screen, screenData }]);
     setScreen(to);
     setScreenData(data);
     window.scrollTo(0, 0);
+  }
+
+  function goBack() {
+    setNavStack(prev => {
+      if (prev.length === 0) return prev;
+      const next = [...prev];
+      const { screen: s, screenData: sd } = next.pop();
+      setScreen(s);
+      setScreenData(sd);
+      return next;
+    });
   }
 
   // ── Members ──────────────────────────────────────────────────────────────────
@@ -835,7 +848,7 @@ export function AppProvider({ children }) {
       calendarConnections, setCalendarConnections,
       signIn, startOnboarding, completeOnboarding, signOut,
       getAllMembers,
-      screen, screenData, navigate,
+      screen, screenData, navigate, goBack, canGoBack: navStack.length > 0,
       hubName, setHubName: v => updateSettings({ hubName: v }),
       chores, toggleChore, addChore, removeChore,
       tierOverrides, setTier, getTier,
@@ -860,6 +873,7 @@ export function AppProvider({ children }) {
       showDailyOverview, setShowDailyOverview,
       bgImage, setBgImage,
       updateSettings,
+      refresh: loadFamilyData,
     }}>
       {children}
     </AppContext.Provider>
