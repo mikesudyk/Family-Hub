@@ -2,8 +2,34 @@ const express   = require('express');
 const bcrypt    = require('bcryptjs');
 const jwt       = require('jsonwebtoken');
 const crypto    = require('crypto');
-const nodemailer = require('nodemailer');
 const { pool }  = require('../db');
+
+async function sendInviteEmail(to, inviteUrl) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.log(`[invite] No RESEND_API_KEY set. Link for ${to}: ${inviteUrl}`);
+    return;
+  }
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: process.env.EMAIL_FROM || 'Aeramea <noreply@aeramea.com>',
+      to,
+      subject: "You've been invited to join a family hub on Aeramea",
+      html: `<p>You've been invited to join a family hub on <strong>Aeramea</strong>.</p>
+             <p><a href="${inviteUrl}">Click here to accept your invite</a></p>
+             <p>This link expires in 7 days.</p>`,
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(`Resend error ${res.status}: ${JSON.stringify(body)}`);
+  }
+}
 
 const router = express.Router();
 
@@ -103,23 +129,7 @@ router.post('/signup', async (req, res) => {
         );
         inviteUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/invite/${inviteToken}`;
 
-        if (process.env.EMAIL_HOST) {
-          const transporter = nodemailer.createTransport({
-            host: process.env.EMAIL_HOST,
-            port: Number(process.env.EMAIL_PORT) || 587,
-            auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-          });
-          await transporter.sendMail({
-            from: process.env.EMAIL_FROM || 'noreply@aeramea.com',
-            to: partnerEmail,
-            subject: "You've been invited to join a family hub on Aeramea",
-            html: `<p>You've been invited to join a family hub on <strong>Aeramea</strong>.</p>
-                   <p><a href="${inviteUrl}">Click here to accept your invite</a></p>
-                   <p>This link expires in 7 days.</p>`,
-          });
-        } else {
-          console.log(`[invite] No EMAIL_HOST set. Invite link for ${partnerEmail}: ${inviteUrl}`);
-        }
+        await sendInviteEmail(partnerEmail, inviteUrl);
       } catch (inviteErr) {
         console.error('[signup invite]', inviteErr.message);
         // Non-fatal — account was created successfully
@@ -127,7 +137,7 @@ router.post('/signup', async (req, res) => {
     }
 
     const token = makeToken(userId, familyId, memberId);
-    res.status(201).json({ token, userId, familyId, memberId, inviteUrl });
+    res.status(201).json({ token, userId, familyId, memberId, inviteUrl: process.env.RESEND_API_KEY ? null : inviteUrl });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('[signup]', err);
@@ -186,26 +196,9 @@ router.post('/invite', async (req, res) => {
 
     const inviteUrl = `${process.env.CLIENT_URL}/invite/${token}`;
 
-    // Send email (falls back to console log if SMTP not configured)
-    if (process.env.EMAIL_HOST) {
-      const transporter = nodemailer.createTransport({
-        host: process.env.EMAIL_HOST,
-        port: Number(process.env.EMAIL_PORT) || 587,
-        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-      });
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM || 'noreply@aeramea.com',
-        to: email,
-        subject: "You've been invited to join a family hub on Aeramea",
-        html: `<p>You've been invited to join a family hub on <strong>Aeramea</strong>.</p>
-               <p><a href="${inviteUrl}">Click here to accept your invite</a></p>
-               <p>This link expires in 7 days.</p>`,
-      });
-    } else {
-      console.log(`[invite] Link for ${email}: ${inviteUrl}`);
-    }
+    await sendInviteEmail(email, inviteUrl);
 
-    res.json({ ok: true, inviteUrl: process.env.EMAIL_HOST ? null : inviteUrl });
+    res.json({ ok: true, inviteUrl: process.env.RESEND_API_KEY ? null : inviteUrl });
   } catch (err) {
     console.error('[invite]', err);
     res.status(500).json({ error: 'Failed to send invite' });
