@@ -3,6 +3,33 @@ import { useApp } from '../context/AppContext';
 import { BackButton } from './ui';
 import { apiFetch } from '../api/client';
 
+const AVATAR_EMOJIS = [
+  '👨', '👩', '🧑', '👱', '👱‍♀️', '🧔', '🧔‍♀️',
+  '👦', '👧', '🧒', '👶', '👨‍🦱', '👩‍🦱',
+  '👨‍🦰', '👩‍🦰', '👨‍🦳', '👩‍🦳', '👨‍🦲', '👩‍🦲',
+  '🧓', '🦸', '🦸‍♀️', '🧙', '🧙‍♀️', '🤴', '👸',
+  '🦹', '🦹‍♀️', '🧝', '🧝‍♀️', '🎅', '🤶',
+];
+
+function AvatarGrid({ value, onChange }) {
+  return (
+    <div className="grid grid-cols-7 gap-1.5">
+      {AVATAR_EMOJIS.map(em => (
+        <button
+          key={em}
+          type="button"
+          onClick={() => onChange(em)}
+          className={`w-9 h-9 text-xl flex items-center justify-center rounded-xl border-2 transition-all cursor-pointer bg-transparent ${
+            value === em ? 'border-gray-900 bg-gray-50' : 'border-transparent hover:border-gray-200'
+          }`}
+        >
+          {em}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function timeAgo(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
@@ -195,14 +222,8 @@ function ProfileRow({ member: m }) {
       {editing && (
         <div className="px-3.5 pb-4 pt-1 border-t border-gray-100 space-y-2.5">
           <div>
-            <div className="text-xs font-semibold text-gray-400 mb-1">Emoji</div>
-            <input
-              type="text"
-              value={draftAvatar}
-              onChange={e => setDraftAvatar(e.target.value)}
-              className="w-16 text-center text-2xl bg-gray-50 rounded-lg px-2 py-1.5 border border-gray-200 outline-none focus:border-blue-400"
-              maxLength={4}
-            />
+            <div className="text-xs font-semibold text-gray-400 mb-1">Avatar</div>
+            <AvatarGrid value={draftAvatar} onChange={setDraftAvatar} />
           </div>
           <div>
             <div className="text-xs font-semibold text-gray-400 mb-1">Name</div>
@@ -298,29 +319,21 @@ function AddChildRow() {
         <button onClick={() => setOpen(false)} className="text-gray-300 bg-transparent border-none cursor-pointer text-lg leading-none">×</button>
       </div>
       <div className="px-3.5 pb-4 border-t border-gray-100 pt-3 space-y-2.5">
-        <div className="flex gap-3">
-          <div>
-            <div className="text-xs font-semibold text-gray-400 mb-1">Emoji</div>
-            <input
-              type="text"
-              value={avatar}
-              onChange={e => setAvatar(e.target.value)}
-              className="w-16 text-center text-2xl bg-gray-50 rounded-lg px-2 py-1.5 border border-gray-200 outline-none focus:border-blue-400"
-              maxLength={4}
-            />
-          </div>
-          <div className="flex-1">
-            <div className="text-xs font-semibold text-gray-400 mb-1">Name</div>
-            <input
-              autoFocus
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && save()}
-              placeholder="Child's name"
-              className="w-full bg-gray-50 rounded-lg px-3 py-1.5 text-sm border border-gray-200 outline-none focus:border-blue-400"
-            />
-          </div>
+        <div>
+          <div className="text-xs font-semibold text-gray-400 mb-1">Name</div>
+          <input
+            autoFocus
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && save()}
+            placeholder="Child's name"
+            className="w-full bg-gray-50 rounded-lg px-3 py-1.5 text-sm border border-gray-200 outline-none focus:border-blue-400"
+          />
+        </div>
+        <div>
+          <div className="text-xs font-semibold text-gray-400 mb-1">Avatar</div>
+          <AvatarGrid value={avatar} onChange={setAvatar} />
         </div>
         <div>
           <div className="text-xs font-semibold text-gray-400 mb-1">Birthday</div>
