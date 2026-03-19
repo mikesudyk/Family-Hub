@@ -175,9 +175,9 @@ function ProfileRow({ member: m }) {
       </div>
 
       {/* Tier selector (children only, always visible) */}
-      {!isAdmin && !isInfant && !editing && (
+      {!isAdmin && !editing && (
         <div className="flex gap-1.5 px-3.5 pb-3">
-          {['teen', 'child'].map(t => (
+          {['child', 'teen', 'infant'].map(t => (
             <button
               key={t}
               onClick={() => setTier(m.id, t)}
@@ -185,7 +185,7 @@ function ProfileRow({ member: m }) {
                 tier === t ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'
               }`}
             >
-              {t === 'teen' ? 'Teen' : 'Child'}
+              {t === 'teen' ? 'Teen' : t === 'child' ? 'Child' : 'Infant'}
             </button>
           ))}
         </div>
@@ -334,7 +334,7 @@ function AddChildRow() {
         <div>
           <div className="text-xs font-semibold text-gray-400 mb-1">Role</div>
           <div className="flex gap-1.5">
-            {['child', 'teen'].map(t => (
+            {['child', 'teen', 'infant'].map(t => (
               <button
                 key={t}
                 onClick={() => setTier(t)}
@@ -342,7 +342,7 @@ function AddChildRow() {
                   tier === t ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'
                 }`}
               >
-                {t === 'teen' ? 'Teen' : 'Child'}
+                {t === 'teen' ? 'Teen' : t === 'child' ? 'Child' : 'Infant'}
               </button>
             ))}
           </div>

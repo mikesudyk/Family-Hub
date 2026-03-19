@@ -237,6 +237,7 @@ function StepAddKids({ onNext }) {
           >
             <option value="child">Child</option>
             <option value="teen">Teen</option>
+            <option value="infant">Infant</option>
           </select>
         </div>
         <input
