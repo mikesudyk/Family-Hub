@@ -405,6 +405,135 @@ function AddChildRow() {
   );
 }
 
+function AccountSettings() {
+  const [section, setSection] = useState(null); // null | 'email' | 'password'
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newEmail, setNewEmail]       = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirm, setConfirm]         = useState('');
+  const [status, setStatus]           = useState('idle');
+  const [errorMsg, setErrorMsg]       = useState('');
+
+  function reset() {
+    setCurrentPassword(''); setNewEmail(''); setNewPassword(''); setConfirm('');
+    setStatus('idle'); setErrorMsg('');
+  }
+
+  function open(s) { reset(); setSection(s); }
+  function close() { reset(); setSection(null); }
+
+  async function save() {
+    if (section === 'password' && newPassword !== confirm) {
+      setErrorMsg('Passwords do not match'); return;
+    }
+    if (section === 'password' && newPassword.length < 8) {
+      setErrorMsg('Password must be at least 8 characters'); return;
+    }
+    setStatus('saving'); setErrorMsg('');
+    try {
+      await apiFetch('/api/auth/account', {
+        method: 'PUT',
+        body: JSON.stringify({
+          currentPassword,
+          ...(section === 'email'    ? { newEmail }    : {}),
+          ...(section === 'password' ? { newPassword } : {}),
+        }),
+      });
+      setStatus('ok');
+      setTimeout(close, 1500);
+    } catch (err) {
+      setErrorMsg(err.message || 'Something went wrong');
+      setStatus('error');
+    }
+  }
+
+  return (
+    <div className="mt-6">
+      <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Account</div>
+      <div className="bg-white rounded-xl overflow-hidden">
+        {!section ? (
+          <div className="flex gap-2 p-3.5">
+            <button
+              onClick={() => open('email')}
+              className="text-xs font-semibold bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg border-none cursor-pointer"
+            >
+              Change email
+            </button>
+            <button
+              onClick={() => open('password')}
+              className="text-xs font-semibold bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg border-none cursor-pointer"
+            >
+              Change password
+            </button>
+          </div>
+        ) : (
+          <div className="p-3.5 space-y-2">
+            <div className="text-sm font-semibold text-gray-900">
+              {section === 'email' ? 'Change email' : 'Change password'}
+            </div>
+            {status === 'ok' && (
+              <div className="bg-green-50 border border-green-100 rounded-xl px-3 py-2 text-xs font-semibold text-green-800">
+                {section === 'email' ? 'Email updated!' : 'Password updated!'}
+              </div>
+            )}
+            {errorMsg && <div className="text-xs text-red-500">{errorMsg}</div>}
+
+            {section === 'email' && (
+              <input
+                autoFocus
+                type="email"
+                value={newEmail}
+                onChange={e => setNewEmail(e.target.value)}
+                placeholder="New email address"
+                className="w-full bg-gray-50 rounded-lg px-3 py-2 text-sm border border-gray-200 outline-none focus:border-blue-400"
+              />
+            )}
+            {section === 'password' && (
+              <>
+                <input
+                  autoFocus
+                  type="password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="New password"
+                  className="w-full bg-gray-50 rounded-lg px-3 py-2 text-sm border border-gray-200 outline-none focus:border-blue-400"
+                />
+                <input
+                  type="password"
+                  value={confirm}
+                  onChange={e => setConfirm(e.target.value)}
+                  placeholder="Confirm new password"
+                  className="w-full bg-gray-50 rounded-lg px-3 py-2 text-sm border border-gray-200 outline-none focus:border-blue-400"
+                />
+              </>
+            )}
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={e => setCurrentPassword(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && save()}
+              placeholder="Current password to confirm"
+              className="w-full bg-gray-50 rounded-lg px-3 py-2 text-sm border border-gray-200 outline-none focus:border-blue-400"
+            />
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={save}
+                disabled={status === 'saving' || status === 'ok' || !currentPassword || (section === 'email' ? !newEmail : !newPassword)}
+                className="text-xs font-semibold bg-gray-900 text-white px-4 py-1.5 rounded-lg border-none cursor-pointer disabled:opacity-40"
+              >
+                {status === 'saving' ? 'Saving…' : 'Save'}
+              </button>
+              <button onClick={close} className="text-xs font-semibold text-gray-400 bg-transparent border-none cursor-pointer">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminProfiles() {
   const { getAllMembers } = useApp();
   const members = getAllMembers();
@@ -427,6 +556,8 @@ export default function AdminProfiles() {
         <ProfileRow key={m.id} member={m} />
       ))}
       <AddChildRow />
+
+      <AccountSettings />
     </div>
   );
 }
