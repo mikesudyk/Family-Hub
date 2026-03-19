@@ -220,8 +220,14 @@ router.post('/invite/resend/:id', async (req, res) => {
     if (r.rows.length === 0) return res.status(404).json({ error: 'Invite not found' });
     const { email, token } = r.rows[0];
     const inviteUrl = `${process.env.CLIENT_URL}/invite/${token}`;
-    await sendInviteEmail(email, inviteUrl);
-    res.json({ ok: true, inviteUrl: process.env.RESEND_API_KEY ? null : inviteUrl });
+    let emailSent = false;
+    try {
+      await sendInviteEmail(email, inviteUrl);
+      emailSent = true;
+    } catch (emailErr) {
+      console.error('[resend invite] email failed:', emailErr.message);
+    }
+    res.json({ ok: true, emailSent, inviteUrl: !emailSent ? inviteUrl : null });
   } catch (err) {
     console.error('[resend invite]', err);
     res.status(500).json({ error: 'Failed to resend invite' });
@@ -253,12 +259,18 @@ router.post('/invite', async (req, res) => {
 
     const inviteUrl = `${process.env.CLIENT_URL}/invite/${token}`;
 
-    await sendInviteEmail(email, inviteUrl);
+    let emailSent = false;
+    try {
+      await sendInviteEmail(email, inviteUrl);
+      emailSent = true;
+    } catch (emailErr) {
+      console.error('[invite] email failed:', emailErr.message);
+    }
 
-    res.json({ ok: true, inviteUrl: process.env.RESEND_API_KEY ? null : inviteUrl });
+    res.json({ ok: true, emailSent, inviteUrl: !emailSent ? inviteUrl : null });
   } catch (err) {
     console.error('[invite]', err);
-    res.status(500).json({ error: 'Failed to send invite' });
+    res.status(500).json({ error: 'Failed to create invite' });
   }
 });
 

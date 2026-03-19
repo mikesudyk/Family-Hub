@@ -14,20 +14,21 @@ function timeAgo(dateStr) {
   return `${days}d ago`;
 }
 
-function InviteSpouseRow() {
-  const [open, setOpen]           = useState(false);
-  const [email, setEmail]         = useState('');
-  const [status, setStatus]       = useState('idle'); // idle | sending | sent | error
-  const [inviteUrl, setInviteUrl] = useState(null);
-  const [copied, setCopied]       = useState(false);
-  const [pendingInvites, setPendingInvites] = useState([]);
-  const [resendingId, setResendingId]       = useState(null);
-  const [resentId, setResentId]             = useState(null);
+function timeUntil(dateStr) {
+  const diff = new Date(dateStr).getTime() - Date.now();
+  if (diff <= 0) return 'expired';
+  const hours = Math.floor(diff / 3600000);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
+}
 
-  useEffect(() => {
-    if (!open) return;
-    apiFetch('/api/auth/invites').then(setPendingInvites).catch(() => {});
-  }, [open]);
+function InviteSpouseRow({ onInviteSent, hasExisting }) {
+  const [open, setOpen]     = useState(false);
+  const [email, setEmail]   = useState('');
+  const [status, setStatus] = useState('idle');
+  const [inviteUrl, setInviteUrl] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   async function sendInvite() {
     if (!email.trim()) return;
@@ -39,24 +40,9 @@ function InviteSpouseRow() {
       });
       setStatus('sent');
       if (res.inviteUrl) setInviteUrl(res.inviteUrl);
-      apiFetch('/api/auth/invites').then(setPendingInvites).catch(() => {});
+      onInviteSent();
     } catch {
       setStatus('error');
-    }
-  }
-
-  async function resendInvite(invite) {
-    setResendingId(invite.id);
-    try {
-      const res = await apiFetch(`/api/auth/invite/resend/${invite.id}`, { method: 'POST' });
-      if (res.inviteUrl) setInviteUrl(res.inviteUrl);
-      setResentId(invite.id);
-      setTimeout(() => setResentId(null), 3000);
-      apiFetch('/api/auth/invites').then(setPendingInvites).catch(() => {});
-    } catch {
-      // silently fail — user can try again
-    } finally {
-      setResendingId(null);
     }
   }
 
@@ -73,7 +59,7 @@ function InviteSpouseRow() {
         className="w-full flex items-center gap-3 bg-white rounded-xl mb-2 px-3.5 py-3 border-none cursor-pointer text-left"
       >
         <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-xl flex-shrink-0">+</div>
-        <div className="text-sm font-semibold text-gray-400">Invite spouse</div>
+        <div className="text-sm font-semibold text-gray-400">{hasExisting ? 'Send another invite' : 'Invite spouse'}</div>
       </button>
     );
   }
@@ -83,79 +69,52 @@ function InviteSpouseRow() {
       <div className="flex items-center gap-3 p-3.5">
         <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-xl flex-shrink-0">+</div>
         <div className="flex-1 text-sm font-semibold text-gray-900">Invite spouse</div>
-        <button onClick={() => setOpen(false)} className="text-gray-300 bg-transparent border-none cursor-pointer text-lg leading-none">×</button>
+        <button onClick={() => { setOpen(false); setStatus('idle'); setInviteUrl(null); }} className="text-gray-300 bg-transparent border-none cursor-pointer text-lg leading-none">×</button>
       </div>
 
-      {/* Pending invites */}
-      {pendingInvites.length > 0 && (
-        <div className="px-3.5 pb-3 space-y-2">
-          <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">Pending</div>
-          {pendingInvites.map(inv => (
-            <div key={inv.id} className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5 flex items-center gap-2">
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-gray-800 truncate">{inv.email}</div>
-                <div className="text-xs text-gray-400">Sent {timeAgo(inv.created_at)}</div>
-              </div>
-              <button
-                onClick={() => resendInvite(inv)}
-                disabled={resendingId === inv.id}
-                className="text-xs font-semibold px-3 py-1.5 rounded-lg border-none cursor-pointer text-white flex-shrink-0 disabled:opacity-40"
-                style={{ background: resentId === inv.id ? '#4FA45A' : '#111827' }}
-              >
-                {resendingId === inv.id ? 'Sending…' : resentId === inv.id ? 'Sent!' : 'Resend'}
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Invite URL (shown after send/resend when no email configured) */}
-      {inviteUrl && (
-        <div className="px-3.5 pb-3">
-          <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
-            <div className="text-xs text-amber-600 mb-2">No email configured — share this link directly:</div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 bg-white rounded-lg px-2.5 py-1.5 text-xs text-gray-500 font-mono truncate border border-amber-100">
-                {inviteUrl}
-              </div>
-              <button
-                onClick={copyUrl}
-                className="text-xs font-bold px-3 py-1.5 rounded-lg border-none cursor-pointer text-white flex-shrink-0"
-                style={{ background: copied ? '#4FA45A' : '#111827' }}
-              >
-                {copied ? 'Copied!' : 'Copy'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* New invite form */}
       <div className="px-3.5 pb-4 border-t border-gray-100 pt-3 space-y-2">
-        {status === 'sent' && (
+        {status === 'sent' && !inviteUrl && (
           <div className="bg-green-50 border border-green-100 rounded-xl px-3 py-2 flex items-center gap-2">
             <span className="text-green-600 text-sm font-bold">✓</span>
             <span className="text-xs font-semibold text-green-800">Invite sent to {email}</span>
           </div>
         )}
-        {status === 'error' && (
-          <div className="text-xs text-red-500">Failed to send invite. Try again.</div>
+        {inviteUrl && (
+          <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+            <div className="text-xs text-amber-700 font-semibold mb-1">Email couldn't send — share this link:</div>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-white rounded-lg px-2.5 py-1.5 text-xs text-gray-500 font-mono truncate border border-amber-100">{inviteUrl}</div>
+              <button
+                onClick={copyUrl}
+                className="text-xs font-bold px-3 py-1.5 rounded-lg border-none cursor-pointer text-white flex-shrink-0"
+                style={{ background: copied ? '#4FA45A' : '#111827' }}
+              >{copied ? 'Copied!' : 'Copy'}</button>
+            </div>
+          </div>
         )}
-        <input
-          type="email"
-          value={email}
-          onChange={e => { setEmail(e.target.value); setStatus('idle'); }}
-          onKeyDown={e => e.key === 'Enter' && sendInvite()}
-          placeholder={pendingInvites.length > 0 ? 'Send to a different email…' : "Spouse's email address"}
-          className="w-full bg-gray-50 rounded-lg px-3 py-2 text-sm border border-gray-200 outline-none focus:border-blue-400"
-        />
-        <button
-          onClick={sendInvite}
-          disabled={!email.trim() || status === 'sending'}
-          className="text-xs font-semibold bg-gray-900 text-white px-4 py-1.5 rounded-lg border-none cursor-pointer disabled:opacity-40"
-        >
-          {status === 'sending' ? 'Sending…' : 'Send Invite'}
-        </button>
+        {status === 'error' && (
+          <div className="text-xs text-red-500">Failed to create invite. Try again.</div>
+        )}
+        {status !== 'sent' && (
+          <>
+            <input
+              autoFocus
+              type="email"
+              value={email}
+              onChange={e => { setEmail(e.target.value); setStatus('idle'); }}
+              onKeyDown={e => e.key === 'Enter' && sendInvite()}
+              placeholder="Spouse's email address"
+              className="w-full bg-gray-50 rounded-lg px-3 py-2 text-sm border border-gray-200 outline-none focus:border-blue-400"
+            />
+            <button
+              onClick={sendInvite}
+              disabled={!email.trim() || status === 'sending'}
+              className="text-xs font-semibold bg-gray-900 text-white px-4 py-1.5 rounded-lg border-none cursor-pointer disabled:opacity-40"
+            >
+              {status === 'sending' ? 'Sending…' : 'Send Invite'}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -537,6 +496,38 @@ function AccountSettings() {
 export default function AdminProfiles() {
   const { getAllMembers } = useApp();
   const members = getAllMembers();
+  const [pendingInvites, setPendingInvites] = useState([]);
+  const [resendingId, setResendingId] = useState(null);
+  const [resentId, setResentId]       = useState(null);
+  const [copyId, setCopyId]           = useState(null);
+
+  function loadInvites() {
+    apiFetch('/api/auth/invites').then(setPendingInvites).catch(() => {});
+  }
+
+  useEffect(() => { loadInvites(); }, []);
+
+  async function resendInvite(inv) {
+    setResendingId(inv.id);
+    try {
+      const res = await apiFetch(`/api/auth/invite/resend/${inv.id}`, { method: 'POST' });
+      if (res.inviteUrl) {
+        navigator.clipboard.writeText(res.inviteUrl).catch(() => {});
+        setCopyId(inv.id);
+        setTimeout(() => setCopyId(null), 3000);
+      } else {
+        setResentId(inv.id);
+        setTimeout(() => setResentId(null), 3000);
+      }
+      loadInvites();
+    } catch {
+      // silently fail
+    } finally {
+      setResendingId(null);
+    }
+  }
+
+  const parents = members.filter(m => m.role === 'admin');
 
   return (
     <div className="p-5">
@@ -546,10 +537,32 @@ export default function AdminProfiles() {
       </div>
 
       <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Parents</div>
-      {members.filter(m => m.role === 'admin').map(m => (
+      {parents.map(m => (
         <ProfileRow key={m.id} member={m} />
       ))}
-      {members.filter(m => m.role === 'admin').length < 2 && <InviteSpouseRow />}
+
+      {/* Persistent pending invites */}
+      {pendingInvites.map(inv => (
+        <div key={inv.id} className="bg-white rounded-xl mb-2 px-3.5 py-3 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-xl flex-shrink-0">✉️</div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold text-gray-800 truncate">{inv.email}</div>
+            <div className="text-xs text-gray-400">Invited {timeAgo(inv.created_at)} · expires in {timeUntil(inv.expires_at)}</div>
+          </div>
+          <button
+            onClick={() => resendInvite(inv)}
+            disabled={resendingId === inv.id}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg border-none cursor-pointer text-white flex-shrink-0 disabled:opacity-40"
+            style={{ background: resentId === inv.id || copyId === inv.id ? '#4FA45A' : '#111827' }}
+          >
+            {resendingId === inv.id ? 'Sending…' : resentId === inv.id ? 'Sent!' : copyId === inv.id ? 'Link copied!' : 'Resend'}
+          </button>
+        </div>
+      ))}
+
+      {parents.length < 2 && (
+        <InviteSpouseRow onInviteSent={loadInvites} hasExisting={pendingInvites.length > 0} />
+      )}
 
       <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-4">Children</div>
       {members.filter(m => m.role === 'child').map(m => (
