@@ -3,29 +3,87 @@ import { useApp } from '../context/AppContext';
 import { BackButton } from './ui';
 import { apiFetch } from '../api/client';
 
-const AVATAR_EMOJIS = [
-  '👨', '👩', '🧑', '👱', '👱‍♀️', '🧔', '🧔‍♀️',
-  '👦', '👧', '🧒', '👶', '👨‍🦱', '👩‍🦱',
+// Base emojis — skin tone modifier is appended (or inserted before ZWJ for hair variants)
+const BASE_EMOJIS = [
+  '👶', '🧒', '👦', '👧', '🧑', '👨', '👩',
+  '👱', '👱‍♀️', '🧔', '🧔‍♀️', '👨‍🦱', '👩‍🦱',
   '👨‍🦰', '👩‍🦰', '👨‍🦳', '👩‍🦳', '👨‍🦲', '👩‍🦲',
-  '🧓', '🦸', '🦸‍♀️', '🧙', '🧙‍♀️', '🤴', '👸',
-  '🦹', '🦹‍♀️', '🧝', '🧝‍♀️', '🎅', '🤶',
+  '🧓', '🥷', '🦸', '🦸‍♀️', '🦹', '🦹‍♀️',
+  '🧙', '🧙‍♀️', '🧝', '🧝‍♀️', '🤴', '👸', '🎅', '🤶',
 ];
 
-function AvatarGrid({ value, onChange }) {
+const SKIN_TONES = ['', '\u{1F3FB}', '\u{1F3FC}', '\u{1F3FD}', '\u{1F3FE}', '\u{1F3FF}'];
+const TONE_COLORS = ['#FFDC5D', '#F5CFA0', '#E8B88A', '#C68642', '#8D5524', '#4A2912'];
+
+function applyTone(emoji, tone) {
+  if (!tone) return emoji;
+  const ZWJ = '\u200D';
+  if (emoji.includes(ZWJ)) {
+    const parts = emoji.split(ZWJ);
+    parts[0] = parts[0] + tone;
+    return parts.join(ZWJ);
+  }
+  return emoji + tone;
+}
+
+function AvatarPicker({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [tone, setTone] = useState('');
+
+  function pick(em) {
+    onChange(em);
+    setOpen(false);
+  }
+
   return (
-    <div className="grid grid-cols-7 gap-1.5">
-      {AVATAR_EMOJIS.map(em => (
-        <button
-          key={em}
-          type="button"
-          onClick={() => onChange(em)}
-          className={`w-9 h-9 text-xl flex items-center justify-center rounded-xl border-2 transition-all cursor-pointer bg-transparent ${
-            value === em ? 'border-gray-900 bg-gray-50' : 'border-transparent hover:border-gray-200'
-          }`}
-        >
-          {em}
-        </button>
-      ))}
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 cursor-pointer"
+      >
+        <span className="text-2xl leading-none">{value}</span>
+        <span className="text-xs text-gray-400">{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div className="mt-2 bg-gray-50 rounded-xl p-3 space-y-2.5">
+          {/* Skin tone selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 font-semibold">Tone:</span>
+            <div className="flex gap-1.5">
+              {SKIN_TONES.map((t, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setTone(t)}
+                  className={`w-5 h-5 rounded-full border-2 cursor-pointer flex-shrink-0 ${tone === t ? 'border-gray-900' : 'border-transparent'}`}
+                  style={{ background: TONE_COLORS[i] }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Emoji grid */}
+          <div className="grid grid-cols-7 gap-1">
+            {BASE_EMOJIS.map(em => {
+              const displayed = applyTone(em, tone);
+              return (
+                <button
+                  key={em}
+                  type="button"
+                  onClick={() => pick(displayed)}
+                  className={`w-9 h-9 text-xl flex items-center justify-center rounded-xl border-2 cursor-pointer bg-transparent transition-all ${
+                    value === displayed ? 'border-gray-900 bg-white' : 'border-transparent hover:border-gray-200'
+                  }`}
+                >
+                  {displayed}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -223,7 +281,7 @@ function ProfileRow({ member: m }) {
         <div className="px-3.5 pb-4 pt-1 border-t border-gray-100 space-y-2.5">
           <div>
             <div className="text-xs font-semibold text-gray-400 mb-1">Avatar</div>
-            <AvatarGrid value={draftAvatar} onChange={setDraftAvatar} />
+            <AvatarPicker value={draftAvatar} onChange={setDraftAvatar} />
           </div>
           <div>
             <div className="text-xs font-semibold text-gray-400 mb-1">Name</div>
@@ -333,7 +391,7 @@ function AddChildRow() {
         </div>
         <div>
           <div className="text-xs font-semibold text-gray-400 mb-1">Avatar</div>
-          <AvatarGrid value={avatar} onChange={setAvatar} />
+          <AvatarPicker value={avatar} onChange={setAvatar} />
         </div>
         <div>
           <div className="text-xs font-semibold text-gray-400 mb-1">Birthday</div>
