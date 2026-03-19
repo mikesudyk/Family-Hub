@@ -36,6 +36,14 @@ export default function AdminDashboard() {
           >
             {bgImage ? 'Change Image' : 'Upload Image'}
           </button>
+          {!bgImage && (
+            <button
+              onClick={() => setBgImage('/default-bg.jpeg')}
+              className="text-sm font-semibold bg-gray-100 text-gray-600 px-4 py-2 rounded-xl border-none cursor-pointer"
+            >
+              Use default
+            </button>
+          )}
           {bgImage && (
             <button
               onClick={() => setBgImage(null)}
