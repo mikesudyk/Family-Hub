@@ -137,11 +137,14 @@ export function AppProvider({ children }) {
     })));
 
     // Family goals
-    socket.on('familyGoal:added', ({ date, goal }) => setFamilyGoals(prev => ({
-      ...prev, [date]: [...(prev[date] || []), goal],
+    socket.on('familyGoal:added', ({ id, date, text, done }) => setFamilyGoals(prev => ({
+      ...prev, [date]: [...(prev[date] || []), { id, text, done }],
     })));
-    socket.on('familyGoal:updated', ({ date, goal }) => setFamilyGoals(prev => ({
-      ...prev, [date]: (prev[date] || []).map(g => g.id === goal.id ? { ...g, ...goal } : g),
+    socket.on('familyGoal:toggled', ({ id, date, done }) => setFamilyGoals(prev => ({
+      ...prev, [date]: (prev[date] || []).map(g => g.id === id ? { ...g, done } : g),
+    })));
+    socket.on('familyGoal:updated', ({ id, date, text }) => setFamilyGoals(prev => ({
+      ...prev, [date]: (prev[date] || []).map(g => g.id === id ? { ...g, text } : g),
     })));
     socket.on('familyGoal:deleted', ({ date, id }) => setFamilyGoals(prev => ({
       ...prev, [date]: (prev[date] || []).filter(g => g.id !== id),
