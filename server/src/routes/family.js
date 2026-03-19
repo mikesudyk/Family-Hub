@@ -8,6 +8,14 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   const { familyId } = req;
   try {
+    // Reset repeating chores that were completed on a previous day
+    await pool.query(
+      `UPDATE chores SET done = false, done_at = NULL
+       WHERE family_id = $1 AND repeat IS NOT NULL AND done = true
+       AND done_at IS NOT NULL AND done_at::date < CURRENT_DATE`,
+      [familyId]
+    );
+
     const [
       familyRes, settingsRes, membersRes,
       choresRes, choreListsRes, choreItemsRes,

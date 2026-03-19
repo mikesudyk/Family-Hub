@@ -30,7 +30,7 @@ router.put('/:id/toggle', async (req, res) => {
   const { id } = req.params;
   try {
     const r = await pool.query(
-      `UPDATE chores SET done = NOT done, done_at = CASE WHEN NOT done THEN 'just now' ELSE NULL END
+      `UPDATE chores SET done = NOT done, done_at = CASE WHEN NOT done THEN NOW() ELSE NULL END
        WHERE id = $1 AND family_id = $2 RETURNING *`,
       [id, familyId]
     );
