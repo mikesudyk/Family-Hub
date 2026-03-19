@@ -28,10 +28,24 @@ function choreAppliesOnDay(chore, dayAbbr, isToday) {
 function WeekView({ chores }) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const days = getWeekDays();
+  const [showHistory, setShowHistory] = useState(false);
+
+  const hasPastDays = days.some(d => d < today);
+  const visibleDays = showHistory ? days : days.filter(d => d >= today);
 
   return (
     <div className="space-y-2">
-      {days.map(day => {
+      {hasPastDays && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setShowHistory(h => !h)}
+            className="text-xs font-semibold text-blue-500 bg-transparent border-none cursor-pointer"
+          >
+            {showHistory ? 'Hide history' : 'History'}
+          </button>
+        </div>
+      )}
+      {visibleDays.map(day => {
         const abbr = DAY_ABBRS[day.getDay()];
         const isToday = day.getTime() === today.getTime();
         const isPast  = day < today;
