@@ -89,10 +89,10 @@ export function BottomNav() {
 }
 
 export function BackButton({ to, data }) {
-  const { navigate } = useApp();
+  const { navigate, goBack } = useApp();
   return (
     <button
-      onClick={() => navigate(to, data)}
+      onClick={() => to ? navigate(to, data) : goBack()}
       className="text-2xl text-gray-600 pr-2 bg-transparent border-none cursor-pointer leading-none"
     >
       ←
