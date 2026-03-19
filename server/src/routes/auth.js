@@ -317,4 +317,47 @@ router.post('/join/:token', async (req, res) => {
   }
 });
 
+// ── PUT /api/auth/account ─────────────────────────────────────────────────────
+// Change email and/or password for the logged-in user
+router.put('/account', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: 'Not authenticated' });
+  let userId;
+  try {
+    const payload = jwt.verify(authHeader.slice(7), process.env.JWT_SECRET);
+    userId = payload.userId;
+  } catch {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+
+  const { currentPassword, newEmail, newPassword } = req.body;
+  if (!currentPassword) return res.status(400).json({ error: 'currentPassword required' });
+  if (!newEmail && !newPassword) return res.status(400).json({ error: 'Nothing to update' });
+
+  try {
+    const userRes = await pool.query('SELECT * FROM users WHERE id=$1', [userId]);
+    const user = userRes.rows[0];
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const valid = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
+
+    if (newEmail) {
+      const existing = await pool.query('SELECT id FROM users WHERE email=$1 AND id!=$2', [newEmail.toLowerCase(), userId]);
+      if (existing.rows.length > 0) return res.status(409).json({ error: 'Email already in use' });
+      await pool.query('UPDATE users SET email=$1 WHERE id=$2', [newEmail.toLowerCase(), userId]);
+    }
+
+    if (newPassword) {
+      const hash = await bcrypt.hash(newPassword, 12);
+      await pool.query('UPDATE users SET password_hash=$1 WHERE id=$2', [hash, userId]);
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[account update]', err);
+    res.status(500).json({ error: 'Failed to update account' });
+  }
+});
+
 module.exports = router;
