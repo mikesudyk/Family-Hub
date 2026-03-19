@@ -171,6 +171,63 @@ router.post('/signin', async (req, res) => {
   }
 });
 
+// ── GET /api/auth/invites ─────────────────────────────────────────────────────
+// Returns pending (unused, unexpired) invites for this family
+router.get('/invites', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: 'Not authenticated' });
+  let familyId;
+  try {
+    const payload = jwt.verify(authHeader.slice(7), process.env.JWT_SECRET);
+    familyId = payload.familyId;
+  } catch {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+  try {
+    const r = await pool.query(
+      `SELECT id, email, created_at, expires_at FROM invites
+       WHERE family_id=$1 AND used=false AND expires_at > NOW()
+       ORDER BY created_at DESC`,
+      [familyId]
+    );
+    res.json(r.rows);
+  } catch (err) {
+    console.error('[invites]', err);
+    res.status(500).json({ error: 'Failed to fetch invites' });
+  }
+});
+
+// ── POST /api/auth/invite/resend/:id ─────────────────────────────────────────
+// Refreshes the token + expiry and resends the invite email
+router.post('/invite/resend/:id', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: 'Not authenticated' });
+  let familyId;
+  try {
+    const payload = jwt.verify(authHeader.slice(7), process.env.JWT_SECRET);
+    familyId = payload.familyId;
+  } catch {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+  try {
+    const newToken = crypto.randomBytes(32).toString('hex');
+    const r = await pool.query(
+      `UPDATE invites SET token=$1, created_at=NOW(), expires_at=NOW() + INTERVAL '7 days'
+       WHERE id=$2 AND family_id=$3 AND used=false
+       RETURNING email, token`,
+      [newToken, req.params.id, familyId]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Invite not found' });
+    const { email, token } = r.rows[0];
+    const inviteUrl = `${process.env.CLIENT_URL}/invite/${token}`;
+    await sendInviteEmail(email, inviteUrl);
+    res.json({ ok: true, inviteUrl: process.env.RESEND_API_KEY ? null : inviteUrl });
+  } catch (err) {
+    console.error('[resend invite]', err);
+    res.status(500).json({ error: 'Failed to resend invite' });
+  }
+});
+
 // ── POST /api/auth/invite ─────────────────────────────────────────────────────
 // Authenticated — sends a partner invite email
 router.post('/invite', async (req, res) => {

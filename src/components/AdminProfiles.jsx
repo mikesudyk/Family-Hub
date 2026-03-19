@@ -1,14 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { BackButton } from './ui';
 import { apiFetch } from '../api/client';
 
+function timeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 2) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 function InviteSpouseRow() {
-  const [open, setOpen]       = useState(false);
-  const [email, setEmail]     = useState('');
-  const [status, setStatus]   = useState('idle'); // idle | sending | sent | error
+  const [open, setOpen]           = useState(false);
+  const [email, setEmail]         = useState('');
+  const [status, setStatus]       = useState('idle'); // idle | sending | sent | error
   const [inviteUrl, setInviteUrl] = useState(null);
-  const [copied, setCopied]   = useState(false);
+  const [copied, setCopied]       = useState(false);
+  const [pendingInvites, setPendingInvites] = useState([]);
+  const [resendingId, setResendingId]       = useState(null);
+  const [resentId, setResentId]             = useState(null);
+
+  useEffect(() => {
+    if (!open) return;
+    apiFetch('/api/auth/invites').then(setPendingInvites).catch(() => {});
+  }, [open]);
 
   async function sendInvite() {
     if (!email.trim()) return;
@@ -20,8 +39,24 @@ function InviteSpouseRow() {
       });
       setStatus('sent');
       if (res.inviteUrl) setInviteUrl(res.inviteUrl);
+      apiFetch('/api/auth/invites').then(setPendingInvites).catch(() => {});
     } catch {
       setStatus('error');
+    }
+  }
+
+  async function resendInvite(invite) {
+    setResendingId(invite.id);
+    try {
+      const res = await apiFetch(`/api/auth/invite/resend/${invite.id}`, { method: 'POST' });
+      if (res.inviteUrl) setInviteUrl(res.inviteUrl);
+      setResentId(invite.id);
+      setTimeout(() => setResentId(null), 3000);
+      apiFetch('/api/auth/invites').then(setPendingInvites).catch(() => {});
+    } catch {
+      // silently fail — user can try again
+    } finally {
+      setResendingId(null);
     }
   }
 
@@ -51,53 +86,77 @@ function InviteSpouseRow() {
         <button onClick={() => setOpen(false)} className="text-gray-300 bg-transparent border-none cursor-pointer text-lg leading-none">×</button>
       </div>
 
-      {status === 'sent' ? (
-        <div className="px-3.5 pb-4 space-y-2">
-          <div className="bg-green-50 border border-green-100 rounded-xl px-3 py-2.5 flex items-center gap-2">
-            <span className="text-green-600 text-sm font-bold">✓</span>
-            <span className="text-sm font-semibold text-green-800">Invite sent to {email}</span>
-          </div>
-          {inviteUrl && (
-            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
-              <div className="text-xs text-amber-600 mb-2">No email configured — share this link directly:</div>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 bg-white rounded-lg px-2.5 py-1.5 text-xs text-gray-500 font-mono truncate border border-amber-100">
-                  {inviteUrl}
-                </div>
-                <button
-                  onClick={copyUrl}
-                  className="text-xs font-bold px-3 py-1.5 rounded-lg border-none cursor-pointer text-white flex-shrink-0"
-                  style={{ background: copied ? '#4FA45A' : '#111827' }}
-                >
-                  {copied ? 'Copied!' : 'Copy'}
-                </button>
+      {/* Pending invites */}
+      {pendingInvites.length > 0 && (
+        <div className="px-3.5 pb-3 space-y-2">
+          <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">Pending</div>
+          {pendingInvites.map(inv => (
+            <div key={inv.id} className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5 flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold text-gray-800 truncate">{inv.email}</div>
+                <div className="text-xs text-gray-400">Sent {timeAgo(inv.created_at)}</div>
               </div>
+              <button
+                onClick={() => resendInvite(inv)}
+                disabled={resendingId === inv.id}
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg border-none cursor-pointer text-white flex-shrink-0 disabled:opacity-40"
+                style={{ background: resentId === inv.id ? '#4FA45A' : '#111827' }}
+              >
+                {resendingId === inv.id ? 'Sending…' : resentId === inv.id ? 'Sent!' : 'Resend'}
+              </button>
             </div>
-          )}
-        </div>
-      ) : (
-        <div className="px-3.5 pb-4 border-t border-gray-100 pt-3 space-y-2">
-          {status === 'error' && (
-            <div className="text-xs text-red-500">Failed to send invite. Try again.</div>
-          )}
-          <input
-            autoFocus
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && sendInvite()}
-            placeholder="Spouse's email address"
-            className="w-full bg-gray-50 rounded-lg px-3 py-2 text-sm border border-gray-200 outline-none focus:border-blue-400"
-          />
-          <button
-            onClick={sendInvite}
-            disabled={!email.trim() || status === 'sending'}
-            className="text-xs font-semibold bg-gray-900 text-white px-4 py-1.5 rounded-lg border-none cursor-pointer disabled:opacity-40"
-          >
-            {status === 'sending' ? 'Sending…' : 'Send Invite'}
-          </button>
+          ))}
         </div>
       )}
+
+      {/* Invite URL (shown after send/resend when no email configured) */}
+      {inviteUrl && (
+        <div className="px-3.5 pb-3">
+          <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+            <div className="text-xs text-amber-600 mb-2">No email configured — share this link directly:</div>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-white rounded-lg px-2.5 py-1.5 text-xs text-gray-500 font-mono truncate border border-amber-100">
+                {inviteUrl}
+              </div>
+              <button
+                onClick={copyUrl}
+                className="text-xs font-bold px-3 py-1.5 rounded-lg border-none cursor-pointer text-white flex-shrink-0"
+                style={{ background: copied ? '#4FA45A' : '#111827' }}
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New invite form */}
+      <div className="px-3.5 pb-4 border-t border-gray-100 pt-3 space-y-2">
+        {status === 'sent' && (
+          <div className="bg-green-50 border border-green-100 rounded-xl px-3 py-2 flex items-center gap-2">
+            <span className="text-green-600 text-sm font-bold">✓</span>
+            <span className="text-xs font-semibold text-green-800">Invite sent to {email}</span>
+          </div>
+        )}
+        {status === 'error' && (
+          <div className="text-xs text-red-500">Failed to send invite. Try again.</div>
+        )}
+        <input
+          type="email"
+          value={email}
+          onChange={e => { setEmail(e.target.value); setStatus('idle'); }}
+          onKeyDown={e => e.key === 'Enter' && sendInvite()}
+          placeholder={pendingInvites.length > 0 ? 'Send to a different email…' : "Spouse's email address"}
+          className="w-full bg-gray-50 rounded-lg px-3 py-2 text-sm border border-gray-200 outline-none focus:border-blue-400"
+        />
+        <button
+          onClick={sendInvite}
+          disabled={!email.trim() || status === 'sending'}
+          className="text-xs font-semibold bg-gray-900 text-white px-4 py-1.5 rounded-lg border-none cursor-pointer disabled:opacity-40"
+        >
+          {status === 'sending' ? 'Sending…' : 'Send Invite'}
+        </button>
+      </div>
     </div>
   );
 }
