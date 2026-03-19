@@ -204,9 +204,11 @@ export function AppProvider({ children }) {
     socket.on('meal:added', m => setMealLibrary(prev => [...prev, m]));
     socket.on('meal:updated', m => setMealLibrary(prev => prev.map(x => x.id === m.id ? { ...x, ...m } : x)));
     socket.on('meal:deleted', ({ id }) => setMealLibrary(prev => prev.filter(x => x.id !== id)));
-    socket.on('mealOnDeck:added', m => setMealsOnDeck(prev => ({
-      ...prev, [m.date]: [...(prev[m.date] || []), m],
-    })));
+    socket.on('mealOnDeck:added', m => setMealsOnDeck(prev => {
+      const list = prev[m.date] || [];
+      if (list.some(x => x.id === m.id)) return prev;
+      return { ...prev, [m.date]: [...list, m] };
+    }));
     socket.on('mealOnDeck:deleted', ({ id, date }) => setMealsOnDeck(prev => ({
       ...prev, [date]: (prev[date] || []).filter(m => m.id !== id),
     })));
@@ -429,7 +431,7 @@ export function AppProvider({ children }) {
     }).then(c => {
       setChores(prev => ({
         ...prev,
-        [kidId]: (prev[kidId] || []).map(x => x.id === tempId ? { ...x, id: c.id } : x),
+        [kidId]: (prev[kidId] || []).filter(x => x.id !== c.id).map(x => x.id === tempId ? { ...x, id: c.id } : x),
       }));
     }).catch(console.error);
   }
@@ -543,7 +545,7 @@ export function AppProvider({ children }) {
     }).then(g => {
       setGoals(prev => ({
         ...prev,
-        [kidId]: (prev[kidId] || []).map(x => x.id === tempId ? { ...x, id: g.id } : x),
+        [kidId]: (prev[kidId] || []).filter(x => x.id !== g.id).map(x => x.id === tempId ? { ...x, id: g.id } : x),
       }));
     }).catch(console.error);
   }
@@ -586,7 +588,7 @@ export function AppProvider({ children }) {
     }).then(g => {
       setFamilyGoals(prev => ({
         ...prev,
-        [date]: (prev[date] || []).map(x => x.id === tempId ? { ...x, id: g.id } : x),
+        [date]: (prev[date] || []).filter(x => x.id !== g.id).map(x => x.id === tempId ? { ...x, id: g.id } : x),
       }));
     }).catch(console.error);
   }
@@ -628,7 +630,7 @@ export function AppProvider({ children }) {
     }).then(t => {
       setPersonalTodos(prev => ({
         ...prev,
-        [kidId]: (prev[kidId] || []).map(x => x.id === tempId ? { ...x, id: t.id } : x),
+        [kidId]: (prev[kidId] || []).filter(x => x.id !== t.id).map(x => x.id === tempId ? { ...x, id: t.id } : x),
       }));
     }).catch(console.error);
   }
@@ -672,7 +674,7 @@ export function AppProvider({ children }) {
         ...prev,
         [memberId]: {
           ...(prev[memberId] || {}),
-          [date]: ((prev[memberId] || {})[date] || []).map(x => x.id === tempId ? { ...x, id: p.id } : x),
+          [date]: ((prev[memberId] || {})[date] || []).filter(x => x.id !== p.id).map(x => x.id === tempId ? { ...x, id: p.id } : x),
         },
       }));
     }).catch(console.error);
@@ -720,7 +722,7 @@ export function AppProvider({ children }) {
     }).then(m => {
       setMealsOnDeck(prev => ({
         ...prev,
-        [date]: (prev[date] || []).map(x => x.id === tempId ? { ...x, id: m.id } : x),
+        [date]: (prev[date] || []).filter(x => x.id !== m.id).map(x => x.id === tempId ? { ...x, id: m.id } : x),
       }));
     }).catch(console.error);
   }
