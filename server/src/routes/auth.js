@@ -234,6 +234,29 @@ router.post('/invite/resend/:id', async (req, res) => {
   }
 });
 
+// ── DELETE /api/auth/invite/:id ───────────────────────────────────────────────
+router.delete('/invite/:id', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: 'Not authenticated' });
+  let familyId;
+  try {
+    const payload = jwt.verify(authHeader.slice(7), process.env.JWT_SECRET);
+    familyId = payload.familyId;
+  } catch {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+  try {
+    await pool.query(
+      'DELETE FROM invites WHERE id=$1 AND family_id=$2 AND used=false',
+      [req.params.id, familyId]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[delete invite]', err);
+    res.status(500).json({ error: 'Failed to delete invite' });
+  }
+});
+
 // ── POST /api/auth/invite ─────────────────────────────────────────────────────
 // Authenticated — sends a partner invite email
 router.post('/invite', async (req, res) => {

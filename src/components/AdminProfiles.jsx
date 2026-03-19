@@ -527,6 +527,11 @@ export default function AdminProfiles() {
     }
   }
 
+  async function deleteInvite(inv) {
+    await apiFetch(`/api/auth/invite/${inv.id}`, { method: 'DELETE' }).catch(() => {});
+    loadInvites();
+  }
+
   const parents = members.filter(m => m.role === 'admin');
 
   return (
@@ -557,6 +562,10 @@ export default function AdminProfiles() {
           >
             {resendingId === inv.id ? 'Sending…' : resentId === inv.id ? 'Sent!' : copyId === inv.id ? 'Link copied!' : 'Resend'}
           </button>
+          <button
+            onClick={() => deleteInvite(inv)}
+            className="text-gray-300 bg-transparent border-none cursor-pointer text-xl leading-none flex-shrink-0"
+          >×</button>
         </div>
       ))}
 
