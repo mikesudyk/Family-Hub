@@ -488,7 +488,16 @@ function getNextBirthday(getMember, allMembers) {
 
 export default function FamilyHub() {
   const { navigate, countdown, countdownMode, getChores, doneCount, totalCount, hubName, setShowDailyOverview, getMember, getAllMembers } = useApp();
-  const allMembers = getAllMembers();
+  const allMembers = getAllMembers().slice().sort((a, b) => {
+    if (a.role === 'admin' && b.role !== 'admin') return -1;
+    if (a.role !== 'admin' && b.role === 'admin') return 1;
+    if (a.role === 'child' && b.role === 'child') {
+      if (a.birthday && b.birthday) return a.birthday.localeCompare(b.birthday);
+      if (a.birthday) return -1;
+      if (b.birthday) return 1;
+    }
+    return 0;
+  });
 
   const effectiveCountdown = countdownMode === 'birthday' ? getNextBirthday(getMember, allMembers) : countdown;
 
