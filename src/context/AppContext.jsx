@@ -96,9 +96,11 @@ export function AppProvider({ children }) {
     ));
 
     // Chores
-    socket.on('chore:added', ({ memberId, chore }) => setChores(prev => ({
-      ...prev, [memberId]: [...(prev[memberId] || []), chore],
-    })));
+    socket.on('chore:added', (chore) => setChores(prev => {
+      const list = prev[chore.memberId] || [];
+      if (list.some(c => c.id === chore.id)) return prev;
+      return { ...prev, [chore.memberId]: [...list, chore] };
+    }));
     socket.on('chore:updated', ({ memberId, chore }) => setChores(prev => ({
       ...prev, [memberId]: (prev[memberId] || []).map(c => c.id === chore.id ? { ...c, ...chore } : c),
     })));
@@ -126,8 +128,13 @@ export function AppProvider({ children }) {
     socket.on('listEvent:dismissed', () => setActiveListEvent(null));
 
     // Goals
-    socket.on('goal:added', ({ memberId, goal }) => setGoals(prev => ({
-      ...prev, [memberId]: [...(prev[memberId] || []), goal],
+    socket.on('goal:added', (goal) => setGoals(prev => {
+      const list = prev[goal.memberId] || [];
+      if (list.some(g => g.id === goal.id)) return prev;
+      return { ...prev, [goal.memberId]: [...list, goal] };
+    }));
+    socket.on('goal:toggled', ({ memberId, id, done }) => setGoals(prev => ({
+      ...prev, [memberId]: (prev[memberId] || []).map(g => g.id === id ? { ...g, done } : g),
     })));
     socket.on('goal:updated', ({ memberId, goal }) => setGoals(prev => ({
       ...prev, [memberId]: (prev[memberId] || []).map(g => g.id === goal.id ? { ...g, ...goal } : g),
@@ -137,9 +144,11 @@ export function AppProvider({ children }) {
     })));
 
     // Family goals
-    socket.on('familyGoal:added', ({ id, date, text, done }) => setFamilyGoals(prev => ({
-      ...prev, [date]: [...(prev[date] || []), { id, text, done }],
-    })));
+    socket.on('familyGoal:added', ({ id, date, text, done }) => setFamilyGoals(prev => {
+      const list = prev[date] || [];
+      if (list.some(g => g.id === id)) return prev;
+      return { ...prev, [date]: [...list, { id, text, done }] };
+    }));
     socket.on('familyGoal:toggled', ({ id, date, done }) => setFamilyGoals(prev => ({
       ...prev, [date]: (prev[date] || []).map(g => g.id === id ? { ...g, done } : g),
     })));
@@ -151,8 +160,13 @@ export function AppProvider({ children }) {
     })));
 
     // Personal todos
-    socket.on('todo:added', ({ memberId, todo }) => setPersonalTodos(prev => ({
-      ...prev, [memberId]: [...(prev[memberId] || []), todo],
+    socket.on('todo:added', (todo) => setPersonalTodos(prev => {
+      const list = prev[todo.memberId] || [];
+      if (list.some(t => t.id === todo.id)) return prev;
+      return { ...prev, [todo.memberId]: [...list, todo] };
+    }));
+    socket.on('todo:toggled', ({ memberId, id, done }) => setPersonalTodos(prev => ({
+      ...prev, [memberId]: (prev[memberId] || []).map(t => t.id === id ? { ...t, done } : t),
     })));
     socket.on('todo:updated', ({ memberId, todo }) => setPersonalTodos(prev => ({
       ...prev, [memberId]: (prev[memberId] || []).map(t => t.id === todo.id ? { ...t, ...todo } : t),
@@ -162,8 +176,16 @@ export function AppProvider({ children }) {
     })));
 
     // Parent priorities
-    socket.on('priority:added', ({ memberId, date, priority }) => setParentPriorities(prev => ({
-      ...prev, [memberId]: { ...(prev[memberId] || {}), [date]: [...((prev[memberId] || {})[date] || []), priority] },
+    socket.on('priority:added', (priority) => setParentPriorities(prev => {
+      const dayList = (prev[priority.memberId] || {})[priority.date] || [];
+      if (dayList.some(p => p.id === priority.id)) return prev;
+      return { ...prev, [priority.memberId]: { ...(prev[priority.memberId] || {}), [priority.date]: [...dayList, priority] } };
+    }));
+    socket.on('priority:toggled', ({ memberId, id, date, done }) => setParentPriorities(prev => ({
+      ...prev, [memberId]: {
+        ...(prev[memberId] || {}),
+        [date]: ((prev[memberId] || {})[date] || []).map(p => p.id === id ? { ...p, done } : p),
+      },
     })));
     socket.on('priority:updated', ({ memberId, date, priority }) => setParentPriorities(prev => ({
       ...prev, [memberId]: {
