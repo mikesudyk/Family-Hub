@@ -201,7 +201,10 @@ export function AppProvider({ children }) {
     })));
 
     // Meals
-    socket.on('meal:added', m => setMealLibrary(prev => [...prev, m]));
+    socket.on('meal:added', m => setMealLibrary(prev => {
+      if (prev.some(x => x.id === m.id)) return prev;
+      return [...prev, m];
+    }));
     socket.on('meal:updated', m => setMealLibrary(prev => prev.map(x => x.id === m.id ? { ...x, ...m } : x)));
     socket.on('meal:deleted', ({ id }) => setMealLibrary(prev => prev.filter(x => x.id !== id)));
     socket.on('mealOnDeck:added', m => setMealsOnDeck(prev => {
@@ -764,7 +767,7 @@ export function AppProvider({ children }) {
       method: 'POST',
       body: JSON.stringify(meal),
     }).then(m => {
-      setMealLibrary(prev => prev.map(x => x.id === tempId ? { ...x, id: m.id } : x));
+      setMealLibrary(prev => prev.filter(x => x.id !== m.id).map(x => x.id === tempId ? { ...x, id: m.id } : x));
     }).catch(console.error);
   }
 
