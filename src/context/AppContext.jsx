@@ -38,7 +38,7 @@ export function AppProvider({ children }) {
   const [familyGoals, setFamilyGoals] = useState({});
   const [personalTodos, setPersonalTodos] = useState({});
   const [parentPriorities, setParentPriorities] = useState({});
-  const [mealsOnDeck, setMealsOnDeck] = useState({});
+  const [mealsOnDeck, setMealsOnDeck] = useState([]);
   const [meals, setMeals]             = useState({});
   const [mealLibrary, setMealLibrary] = useState([]);
   const [stores, setStores]           = useState(["Sam's", 'Costco', 'Meijer', 'Aldi', "Trader Joe's", 'Wal-Mart']);
@@ -65,7 +65,7 @@ export function AppProvider({ children }) {
     setFamilyGoals(data.familyGoals || {});
     setPersonalTodos(data.personalTodos || {});
     setParentPriorities(data.parentPriorities || {});
-    setMealsOnDeck(data.mealsOnDeck || {});
+    setMealsOnDeck(data.mealsOnDeck || []);
     setMeals(data.meals || {});
     setMealLibrary(data.mealLibrary || []);
     if (data.stores?.length) setStores(data.stores);
@@ -205,13 +205,15 @@ export function AppProvider({ children }) {
     socket.on('meal:updated', m => setMealLibrary(prev => prev.map(x => x.id === m.id ? { ...x, ...m } : x)));
     socket.on('meal:deleted', ({ id }) => setMealLibrary(prev => prev.filter(x => x.id !== id)));
     socket.on('mealOnDeck:added', m => setMealsOnDeck(prev => {
-      const list = prev[m.date] || [];
-      if (list.some(x => x.id === m.id)) return prev;
-      return { ...prev, [m.date]: [...list, m] };
+      if (prev.some(x => x.id === m.id)) return prev;
+      return [m, ...prev];
     }));
-    socket.on('mealOnDeck:deleted', ({ id, date }) => setMealsOnDeck(prev => ({
-      ...prev, [date]: (prev[date] || []).filter(m => m.id !== id),
-    })));
+    socket.on('mealOnDeck:archived', ({ id, archivedAt }) => setMealsOnDeck(prev =>
+      prev.map(m => m.id === id ? { ...m, archived: true, archivedAt } : m)
+    ));
+    socket.on('mealOnDeck:deleted', ({ id }) => setMealsOnDeck(prev =>
+      prev.filter(m => m.id !== id)
+    ));
     socket.on('mealSlot:updated', ({ date, slot, value }) => setMeals(prev => ({
       ...prev, [date]: { ...(prev[date] || {}), [slot]: value },
     })));
@@ -328,7 +330,7 @@ export function AppProvider({ children }) {
     setFamilyGoals({});
     setPersonalTodos({});
     setParentPriorities({});
-    setMealsOnDeck({});
+    setMealsOnDeck([]);
     setMeals({});
     setMealLibrary([]);
     setShoppingLists([{ id: 1, name: 'Grocery', items: [] }]);
@@ -706,33 +708,34 @@ export function AppProvider({ children }) {
 
   // ── Meals on deck ────────────────────────────────────────────────────────────
 
-  function getMealsOnDeck(date) {
-    return mealsOnDeck[date] || [];
+  function getMealsOnDeck() {
+    return mealsOnDeck.filter(m => !m.archived);
   }
 
-  function addMealOnDeck(date, entry) {
+  function getMealsOnDeckHistory() {
+    return mealsOnDeck.filter(m => m.archived);
+  }
+
+  function addMealOnDeck(entry) {
     const tempId = Date.now();
-    setMealsOnDeck(prev => ({
-      ...prev,
-      [date]: [...(prev[date] || []), { id: tempId, date, ...entry }],
-    }));
+    setMealsOnDeck(prev => [{ id: tempId, archived: false, archivedAt: null, ...entry }, ...prev]);
     apiFetch('/api/meals/on-deck', {
       method: 'POST',
-      body: JSON.stringify({ date, ...entry }),
+      body: JSON.stringify(entry),
     }).then(m => {
-      setMealsOnDeck(prev => ({
-        ...prev,
-        [date]: (prev[date] || []).filter(x => x.id !== m.id).map(x => x.id === tempId ? { ...x, id: m.id } : x),
-      }));
+      setMealsOnDeck(prev => prev.filter(x => x.id !== m.id).map(x => x.id === tempId ? { ...x, id: m.id } : x));
     }).catch(console.error);
   }
 
-  function removeMealOnDeck(date, entryId) {
-    setMealsOnDeck(prev => ({
-      ...prev,
-      [date]: (prev[date] || []).filter(e => e.id !== entryId),
-    }));
-    apiFetch(`/api/meals/on-deck/${entryId}`, { method: 'DELETE' }).catch(console.error);
+  function archiveMealOnDeck(id) {
+    const now = new Date().toISOString();
+    setMealsOnDeck(prev => prev.map(m => m.id === id ? { ...m, archived: true, archivedAt: now } : m));
+    apiFetch(`/api/meals/on-deck/${id}/archive`, { method: 'PUT' }).catch(console.error);
+  }
+
+  function removeMealOnDeck(id) {
+    setMealsOnDeck(prev => prev.filter(m => m.id !== id));
+    apiFetch(`/api/meals/on-deck/${id}`, { method: 'DELETE' }).catch(console.error);
   }
 
   // ── Meal slots ───────────────────────────────────────────────────────────────
@@ -889,7 +892,7 @@ export function AppProvider({ children }) {
       goals, getGoals, addGoal, removeGoal, toggleGoal,
       personalTodos, getPersonalTodos, addPersonalTodo, removePersonalTodo, togglePersonalTodo,
       parentPriorities, getParentPriorities, addParentPriority, removeParentPriority, toggleParentPriority,
-      mealsOnDeck, getMealsOnDeck, addMealOnDeck, removeMealOnDeck,
+      mealsOnDeck, getMealsOnDeck, getMealsOnDeckHistory, addMealOnDeck, archiveMealOnDeck, removeMealOnDeck,
       familyGoals, toggleFamilyGoal, addFamilyGoal, removeFamilyGoal, updateFamilyGoal,
       meals, getMeal, setMeal,
       mealLibrary, addMealToLibrary, updateMealInLibrary, deleteMealFromLibrary,

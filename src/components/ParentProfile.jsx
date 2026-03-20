@@ -208,37 +208,11 @@ function DaySection({ ds, allEvents, getMeal, setMeal, addUserCalendarEvent, isL
   );
 }
 
-function MealOnDeckCard({ entry, onRemove }) {
-  const hasIngredients = entry.fromLibrary && entry.ingredients?.length > 0;
-  return (
-    <div className="bg-gray-50 rounded-xl px-3 py-2">
-      <div className="flex items-start gap-2">
-        <div className="flex-1 min-w-0">
-          <span className="text-sm text-gray-800 font-medium">{entry.title}</span>
-          {hasIngredients && (
-            <div className="flex flex-wrap gap-1 mt-1">
-              {entry.ingredients.map((ing, i) => (
-                <span key={i} className="bg-white text-gray-500 text-xs px-1.5 py-0.5 rounded-md border border-gray-200 whitespace-nowrap">{ing}</span>
-              ))}
-            </div>
-          )}
-        </div>
-        {onRemove && (
-          <button onClick={onRemove} className="text-gray-300 hover:text-red-400 bg-transparent border-none cursor-pointer text-lg leading-none flex-shrink-0">×</button>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function MealsOnDeck() {
-  const { getMealsOnDeck, addMealOnDeck, removeMealOnDeck, mealLibrary } = useApp();
-  const today = new Date().toISOString().split('T')[0];
-  const pastDates = Array.from({ length: 14 }, (_, i) => {
-    const d = new Date(); d.setDate(d.getDate() - (i + 1));
-    return d.toISOString().split('T')[0];
-  });
-  const todayItems = getMealsOnDeck(today);
+  const { getMealsOnDeck, getMealsOnDeckHistory, addMealOnDeck, archiveMealOnDeck, removeMealOnDeck, mealLibrary } = useApp();
+  const activeItems = getMealsOnDeck();
+  const historyItems = getMealsOnDeckHistory();
   const [query, setQuery] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -251,42 +225,65 @@ function MealsOnDeck() {
     const t = title.trim();
     if (!t) return;
     if (libraryMeal) {
-      addMealOnDeck(today, {
-        title: libraryMeal.title,
-        fromLibrary: true,
-        mealId: libraryMeal.id,
-        ingredients: libraryMeal.ingredients || [],
-      });
+      addMealOnDeck({ title: libraryMeal.title, fromLibrary: true, mealId: libraryMeal.id, ingredients: libraryMeal.ingredients || [] });
     } else {
-      addMealOnDeck(today, { title: t, fromLibrary: false });
+      addMealOnDeck({ title: t, fromLibrary: false });
     }
     setQuery('');
     setAdding(false);
+  }
+
+  function formatArchivedDate(isoStr) {
+    if (!isoStr) return '';
+    const d = new Date(isoStr);
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   }
 
   return (
     <div className="bg-white rounded-2xl p-4 mb-4">
       <div className="flex items-center mb-2">
         <div className="text-xs font-bold text-gray-400 uppercase tracking-widest flex-1">Meals on Deck</div>
-        <button
-          onClick={() => setShowHistory(h => !h)}
-          className="text-xs font-semibold text-blue-500 bg-transparent border-none cursor-pointer"
-        >
-          {showHistory ? 'Hide History' : 'History'}
-        </button>
+        {historyItems.length > 0 && (
+          <button
+            onClick={() => setShowHistory(h => !h)}
+            className="text-xs font-semibold text-blue-500 bg-transparent border-none cursor-pointer"
+          >
+            {showHistory ? 'Hide History' : 'History'}
+          </button>
+        )}
       </div>
 
-      {/* Today's meals */}
-      {todayItems.length === 0 && !adding && (
-        <div className="text-xs text-gray-400 py-1 mb-1">No meals added yet today.</div>
+      {/* Active meals */}
+      {activeItems.length === 0 && !adding && (
+        <div className="text-xs text-gray-400 py-1 mb-1">No meals on deck. Add one below!</div>
       )}
       <div className="space-y-1.5 mb-2">
-        {todayItems.map(entry => (
-          <MealOnDeckCard
-            key={entry.id}
-            entry={entry}
-            onRemove={() => removeMealOnDeck(today, entry.id)}
-          />
+        {activeItems.map(entry => (
+          <div key={entry.id} className="bg-gray-50 rounded-xl px-3 py-2">
+            <div className="flex items-start gap-2">
+              <div className="flex-1 min-w-0">
+                <span className="text-sm text-gray-800 font-medium">{entry.title}</span>
+                {entry.fromLibrary && entry.ingredients?.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {entry.ingredients.map((ing, i) => (
+                      <span key={i} className="bg-white text-gray-500 text-xs px-1.5 py-0.5 rounded-md border border-gray-200 whitespace-nowrap">{ing}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-1 flex-shrink-0">
+                <button
+                  onClick={() => archiveMealOnDeck(entry.id)}
+                  className="text-green-400 hover:text-green-600 bg-transparent border-none cursor-pointer text-base leading-none px-0.5"
+                  title="Mark as done / archive"
+                >✓</button>
+                <button
+                  onClick={() => removeMealOnDeck(entry.id)}
+                  className="text-gray-300 hover:text-red-400 bg-transparent border-none cursor-pointer text-lg leading-none"
+                >×</button>
+              </div>
+            </div>
+          </div>
         ))}
       </div>
 
@@ -333,30 +330,28 @@ function MealsOnDeck() {
         </button>
       )}
 
-      {/* History — past 2 weeks, flat deduplicated list */}
-      {showHistory && (() => {
-        const seen = new Set();
-        const allPast = pastDates.flatMap(date => getMealsOnDeck(date)).filter(entry => {
-          const key = entry.title.toLowerCase();
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
-        return (
-          <div className="mt-3 pt-3 border-t border-gray-100">
-            <div className="text-xs font-bold text-gray-400 mb-1.5">Past 2 Weeks</div>
-            {allPast.length === 0 ? (
-              <div className="text-xs text-gray-400">No meals in the past 2 weeks.</div>
-            ) : (
-              <div className="space-y-1.5">
-                {allPast.map(entry => (
-                  <MealOnDeckCard key={entry.id} entry={entry} />
-                ))}
+      {/* History — past 3 weeks of archived meals */}
+      {showHistory && (
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <div className="text-xs font-bold text-gray-400 mb-1.5">Past 3 Weeks</div>
+          <div className="space-y-1.5">
+            {historyItems.map(entry => (
+              <div key={entry.id} className="flex items-center gap-2 opacity-70">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm text-gray-700 font-medium">{entry.title}</div>
+                  {entry.archivedAt && (
+                    <div className="text-xs text-gray-400">{formatArchivedDate(entry.archivedAt)}</div>
+                  )}
+                </div>
+                <button
+                  onClick={() => removeMealOnDeck(entry.id)}
+                  className="text-gray-300 hover:text-red-400 bg-transparent border-none cursor-pointer text-lg leading-none flex-shrink-0"
+                >×</button>
               </div>
-            )}
+            ))}
           </div>
-        );
-      })()}
+        </div>
+      )}
     </div>
   );
 }

@@ -36,7 +36,12 @@ router.get('/', async (req, res) => {
       pool.query('SELECT * FROM personal_todos WHERE family_id = $1 ORDER BY id', [familyId]),
       pool.query("SELECT * FROM parent_priorities WHERE family_id = $1 ORDER BY date DESC, id", [familyId]),
       pool.query('SELECT * FROM meal_library WHERE family_id = $1 ORDER BY id', [familyId]),
-      pool.query("SELECT * FROM meals_on_deck WHERE family_id = $1 ORDER BY date DESC, id", [familyId]),
+      pool.query(
+        `SELECT * FROM meals_on_deck WHERE family_id = $1
+         AND (archived = false OR archived_at > NOW() - INTERVAL '21 days')
+         ORDER BY archived, id DESC`,
+        [familyId]
+      ),
       pool.query("SELECT * FROM meal_slots WHERE family_id = $1", [familyId]),
       pool.query('SELECT * FROM shopping_lists WHERE family_id = $1 ORDER BY id', [familyId]),
       pool.query('SELECT * FROM shopping_items WHERE family_id = $1 ORDER BY id', [familyId]),
@@ -103,16 +108,13 @@ router.get('/', async (req, res) => {
       parentPriorities[mid][d].push({ id: p.id, text: p.text, done: p.done });
     }
 
-    // Meals on deck map: { 'YYYY-MM-DD': [...] }
-    const mealsOnDeck = {};
-    for (const m of mealsOnDeckRes.rows) {
-      const d = m.date.toISOString().split('T')[0];
-      if (!mealsOnDeck[d]) mealsOnDeck[d] = [];
-      mealsOnDeck[d].push({
-        id: m.id, title: m.title, fromLibrary: m.from_library,
-        mealId: m.meal_id, ingredients: m.ingredients || [],
-      });
-    }
+    // Meals on deck — flat array (active first, then archived within 3 weeks)
+    const mealsOnDeck = mealsOnDeckRes.rows.map(m => ({
+      id: m.id, title: m.title, fromLibrary: m.from_library,
+      mealId: m.meal_id, ingredients: m.ingredients || [],
+      archived: m.archived || false,
+      archivedAt: m.archived_at || null,
+    }));
 
     // Meal slots map: { 'YYYY-MM-DD': { Breakfast: '...', ... } }
     const meals = {};

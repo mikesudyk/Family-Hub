@@ -60,15 +60,15 @@ router.delete('/library/:id', async (req, res) => {
 
 router.post('/on-deck', async (req, res) => {
   const { familyId } = req;
-  const { date, title, fromLibrary = false, mealId, ingredients = [] } = req.body;
-  if (!date || !title) return res.status(400).json({ error: 'date and title required' });
+  const { title, fromLibrary = false, mealId, ingredients = [] } = req.body;
+  if (!title) return res.status(400).json({ error: 'title required' });
   try {
     const r = await pool.query(
-      'INSERT INTO meals_on_deck (family_id, date, title, from_library, meal_id, ingredients) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
-      [familyId, date, title, fromLibrary, mealId || null, ingredients]
+      'INSERT INTO meals_on_deck (family_id, title, from_library, meal_id, ingredients, archived) VALUES ($1,$2,$3,$4,$5,false) RETURNING *',
+      [familyId, title, fromLibrary, mealId || null, ingredients]
     );
     const m = r.rows[0];
-    const out = { id: m.id, date, title: m.title, fromLibrary: m.from_library, mealId: m.meal_id, ingredients: m.ingredients || [] };
+    const out = { id: m.id, title: m.title, fromLibrary: m.from_library, mealId: m.meal_id, ingredients: m.ingredients || [], archived: false, archivedAt: null };
     broadcast(familyId, 'mealOnDeck:added', out);
     res.status(201).json(out);
   } catch (err) {
@@ -76,17 +76,27 @@ router.post('/on-deck', async (req, res) => {
   }
 });
 
-router.delete('/on-deck/:id', async (req, res) => {
+router.put('/on-deck/:id/archive', async (req, res) => {
   const { familyId } = req;
   try {
     const r = await pool.query(
-      'DELETE FROM meals_on_deck WHERE id = $1 AND family_id = $2 RETURNING date',
+      'UPDATE meals_on_deck SET archived = true, archived_at = NOW() WHERE id = $1 AND family_id = $2 RETURNING *',
       [req.params.id, familyId]
     );
-    broadcast(familyId, 'mealOnDeck:deleted', {
-      id: Number(req.params.id),
-      date: r.rows[0]?.date?.toISOString().split('T')[0],
-    });
+    if (!r.rows.length) return res.status(404).json({ error: 'Not found' });
+    const m = r.rows[0];
+    broadcast(familyId, 'mealOnDeck:archived', { id: m.id, archivedAt: m.archived_at });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to archive meal on deck' });
+  }
+});
+
+router.delete('/on-deck/:id', async (req, res) => {
+  const { familyId } = req;
+  try {
+    await pool.query('DELETE FROM meals_on_deck WHERE id = $1 AND family_id = $2', [req.params.id, familyId]);
+    broadcast(familyId, 'mealOnDeck:deleted', { id: Number(req.params.id) });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete meal on deck' });
