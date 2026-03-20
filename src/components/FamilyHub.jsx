@@ -147,18 +147,21 @@ function formatTimeRange(startTime, durationMins) {
 }
 
 function WeekCalendar() {
-  const { userCalendarEvents, addUserCalendarEvent } = useApp();
+  const { userCalendarEvents, addUserCalendarEvent, calendarConnections, navigate } = useApp();
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
   const [startTime, setStartTime] = useState('');
   const [duration, setDuration] = useState(0);
 
+  const hasConnections = calendarConnections.length > 0;
+
   const todayDate = new Date(); todayDate.setHours(0, 0, 0, 0);
   const in7 = new Date(todayDate); in7.setDate(todayDate.getDate() + 7);
   const todayStr = todayDate.toISOString().split('T')[0];
 
-  const allEvents = [...CALENDAR_EVENTS, ...userCalendarEvents].filter(e => {
+  const sourceEvents = hasConnections ? userCalendarEvents : [...CALENDAR_EVENTS, ...userCalendarEvents];
+  const allEvents = sourceEvents.filter(e => {
     const d = new Date(e.date + 'T00:00:00');
     return d >= todayDate && d < in7;
   });
@@ -185,17 +188,31 @@ function WeekCalendar() {
     <div className="bg-white rounded-xl px-4 py-3">
       {/* Header row */}
       <div className="flex items-center justify-between mb-2">
-        <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">Upcoming</div>
-        <button
-          onClick={() => setAdding(a => !a)}
-          className="text-xs font-semibold text-blue-500 bg-transparent border-none cursor-pointer"
-        >
-          {adding ? 'Cancel' : '+ Add'}
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">Upcoming</div>
+          {!hasConnections && (
+            <span className="text-xs font-semibold bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-md">Sample</span>
+          )}
+        </div>
+        {hasConnections ? (
+          <button
+            onClick={() => setAdding(a => !a)}
+            className="text-xs font-semibold text-blue-500 bg-transparent border-none cursor-pointer"
+          >
+            {adding ? 'Cancel' : '+ Add'}
+          </button>
+        ) : (
+          <button
+            onClick={() => navigate('admin-calendars')}
+            className="text-xs font-semibold text-blue-500 bg-transparent border-none cursor-pointer"
+          >
+            Connect →
+          </button>
+        )}
       </div>
 
-      {/* Add form */}
-      {adding && (
+      {/* Add form (only when connected) */}
+      {adding && hasConnections && (
         <div className="mb-3 space-y-1.5">
           <input
             autoFocus
@@ -237,26 +254,38 @@ function WeekCalendar() {
       )}
 
       {/* Events */}
-      {dates.length === 0 ? (
-        <div className="text-center text-gray-400 text-sm py-1">Nothing scheduled this week.</div>
-      ) : (
-        <div className="space-y-3">
-          {dates.map((date, i) => (
-            <div key={date}>
-              {i > 0 && <div className="h-px bg-gray-100 -mx-4 mb-3" />}
-              <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">{dayLabel(date)}</div>
-              <div className="space-y-1">
-                {grouped[date].map(event => (
-                  <div key={event.id} className="flex items-center gap-2.5">
-                    <span className="text-base leading-none w-5 text-center">{event.icon}</span>
-                    <span className="text-sm text-gray-800 truncate flex-1">{event.title}</span>
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${getColorClass(event.color)}`}>{event.time}</span>
-                  </div>
-                ))}
+      <div className={!hasConnections ? 'opacity-60' : ''}>
+        {dates.length === 0 ? (
+          <div className="text-center text-gray-400 text-sm py-1">Nothing scheduled this week.</div>
+        ) : (
+          <div className="space-y-3">
+            {dates.map((date, i) => (
+              <div key={date}>
+                {i > 0 && <div className="h-px bg-gray-100 -mx-4 mb-3" />}
+                <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">{dayLabel(date)}</div>
+                <div className="space-y-1">
+                  {grouped[date].map(event => (
+                    <div key={event.id} className="flex items-center gap-2.5">
+                      <span className="text-base leading-none w-5 text-center">{event.icon}</span>
+                      <span className="text-sm text-gray-800 truncate flex-1">{event.title}</span>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${getColorClass(event.color)}`}>{event.time}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Connect CTA when using sample data */}
+      {!hasConnections && (
+        <button
+          onClick={() => navigate('admin-calendars')}
+          className="w-full mt-3 pt-3 border-t border-gray-100 text-xs text-gray-400 hover:text-blue-500 bg-transparent border-b-0 border-l-0 border-r-0 cursor-pointer text-center font-semibold transition-colors"
+        >
+          Connect your calendar to see real events →
+        </button>
       )}
     </div>
   );

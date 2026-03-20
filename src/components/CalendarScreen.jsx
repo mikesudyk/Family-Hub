@@ -179,13 +179,15 @@ function EventRow({ event, isUserEvent, onUpdate, onDelete }) {
 }
 
 export default function CalendarScreen() {
-  const { userCalendarEvents, addUserCalendarEvent, updateUserCalendarEvent, deleteUserCalendarEvent } = useApp();
+  const { userCalendarEvents, addUserCalendarEvent, updateUserCalendarEvent, deleteUserCalendarEvent, calendarConnections, navigate } = useApp();
   const [showAdd, setShowAdd] = useState(false);
+  const hasConnections = calendarConnections.length > 0;
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
 
   const userEventIds = new Set(userCalendarEvents.map(e => e.id));
-  const allEvents = [...CALENDAR_EVENTS, ...userCalendarEvents].filter(e => {
+  const sourceEvents = hasConnections ? userCalendarEvents : [...CALENDAR_EVENTS, ...userCalendarEvents];
+  const allEvents = sourceEvents.filter(e => {
     const d = new Date(e.date + 'T00:00:00');
     return d >= today;
   });
@@ -203,8 +205,18 @@ export default function CalendarScreen() {
       <div className="px-5 pt-5 pb-3 border-b border-gray-100 flex items-center gap-2">
         <div className="flex-1">
           <div className="text-xl font-extrabold tracking-tight">📅 Calendar</div>
-          <div className="text-xs text-gray-400 mt-0.5">Upcoming family events</div>
+          <div className="text-xs text-gray-400 mt-0.5">
+            {hasConnections ? 'Upcoming family events' : 'Sample data — connect a calendar'}
+          </div>
         </div>
+        {!hasConnections && (
+          <button
+            onClick={() => navigate('admin-calendars')}
+            className="text-sm font-semibold text-blue-500 bg-transparent border-none cursor-pointer"
+          >
+            Connect →
+          </button>
+        )}
         <button
           onClick={() => setShowAdd(a => !a)}
           className="text-sm font-semibold text-blue-500 bg-transparent border-none cursor-pointer"
