@@ -88,9 +88,14 @@ async function runPeriodicSync() {
   try {
     const { pool } = require('./db');
     const { syncFromGoogle } = require('./services/googleCalendar');
-    const r = await pool.query("SELECT * FROM calendar_connections WHERE provider='google'");
+    const { syncFromIcloud } = require('./services/icloudCalendar');
+    const r = await pool.query('SELECT * FROM calendar_connections');
     for (const conn of r.rows) {
-      await syncFromGoogle(conn).catch(err => console.error(`[sync ${conn.id}]`, err.message));
+      if (conn.provider === 'google') {
+        await syncFromGoogle(conn).catch(err => console.error(`[sync google ${conn.id}]`, err.message));
+      } else if (conn.provider === 'icloud') {
+        await syncFromIcloud(conn).catch(err => console.error(`[sync icloud ${conn.id}]`, err.message));
+      }
     }
   } catch (err) {
     console.error('[periodic sync]', err.message);

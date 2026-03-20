@@ -5,6 +5,9 @@ const {
   getAuthUrl, exchangeCode,
   syncFromGoogle, registerWebhook,
 } = require('../services/googleCalendar');
+const {
+  discoverCalendars, syncFromIcloud,
+} = require('../services/icloudCalendar');
 
 const router = express.Router();
 
@@ -114,15 +117,61 @@ router.get('/connections', verifyToken, async (req, res) => {
   }
 });
 
+// ── POST /api/calendar/connect/icloud/discover ────────────────────────────────
+// Returns list of calendars for given credentials (before saving the connection)
+router.post('/connect/icloud/discover', verifyToken, async (req, res) => {
+  const { appleId, appPassword } = req.body;
+  if (!appleId || !appPassword) return res.status(400).json({ error: 'appleId and appPassword required' });
+  try {
+    const calendars = await discoverCalendars(appleId, appPassword);
+    res.json({ calendars });
+  } catch (err) {
+    console.error('[icloud discover]', err.message);
+    res.status(400).json({ error: err.message || 'Could not connect to iCloud Calendar' });
+  }
+});
+
+// ── POST /api/calendar/connect/icloud ─────────────────────────────────────────
+// Save iCloud credentials + chosen calendar, trigger initial sync
+router.post('/connect/icloud', verifyToken, async (req, res) => {
+  const { appleId, appPassword, calendarUrl, calendarName } = req.body;
+  if (!appleId || !appPassword || !calendarUrl) {
+    return res.status(400).json({ error: 'appleId, appPassword, and calendarUrl required' });
+  }
+  try {
+    const r = await pool.query(
+      `INSERT INTO calendar_connections
+         (family_id, member_id, provider, access_token, refresh_token, calendar_id)
+       VALUES ($1,$2,'icloud',$3,$4,$5)
+       ON CONFLICT (member_id, provider)
+       DO UPDATE SET access_token=$3, refresh_token=$4, calendar_id=$5
+       RETURNING *`,
+      [req.familyId, req.memberId, appleId, appPassword, calendarUrl]
+    );
+    syncFromIcloud(r.rows[0]).catch(err => console.error('[icloud initial sync]', err.message));
+    res.json({ ok: true, calendarName });
+  } catch (err) {
+    console.error('[icloud connect]', err.message);
+    res.status(500).json({ error: 'Failed to save iCloud connection' });
+  }
+});
+
+// ── DELETE /api/calendar/connections/icloud ────────────────────────────────────
+// (handled by the existing generic DELETE below)
+
 // ── POST /api/calendar/sync ───────────────────────────────────────────────────
 // Manual sync trigger
 router.post('/sync', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
-      "SELECT * FROM calendar_connections WHERE family_id=$1 AND provider='google'",
+      'SELECT * FROM calendar_connections WHERE family_id=$1',
       [req.familyId]
     );
-    const results = await Promise.all(r.rows.map(c => syncFromGoogle(c)));
+    const results = await Promise.all(r.rows.map(c => {
+      if (c.provider === 'google') return syncFromGoogle(c);
+      if (c.provider === 'icloud') return syncFromIcloud(c);
+      return null;
+    }));
     res.json({ ok: true, results });
   } catch (err) {
     console.error('[manual sync]', err);

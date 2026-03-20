@@ -2,16 +2,24 @@ const express        = require('express');
 const { pool }       = require('../db');
 const { broadcast }  = require('../socket');
 const { pushEventToGoogle, deleteEventFromGoogle } = require('../services/googleCalendar');
+const { pushEventToIcloud, deleteEventFromIcloud } = require('../services/icloudCalendar');
 
 const router = express.Router();
 
-// Get Google connection for this family (if any) — used to push events
-async function getGoogleConnection(familyId) {
+// Get all calendar connections for this family — used to push events
+async function getConnections(familyId) {
   const r = await pool.query(
-    "SELECT * FROM calendar_connections WHERE family_id=$1 AND provider='google' LIMIT 1",
+    'SELECT * FROM calendar_connections WHERE family_id=$1',
     [familyId]
   );
-  return r.rows[0] || null;
+  return r.rows;
+}
+
+async function pushEventToAll(connections, event) {
+  for (const conn of connections) {
+    if (conn.provider === 'google') pushEventToGoogle(conn, event).catch(console.error);
+    if (conn.provider === 'icloud') pushEventToIcloud(conn, event).catch(console.error);
+  }
 }
 
 router.post('/', async (req, res) => {
@@ -26,11 +34,7 @@ router.post('/', async (req, res) => {
     const e = r.rows[0];
     const out = { id: e.id, date: e.date.toISOString().split('T')[0], title: e.title, time: e.time, color: e.color, icon: e.icon };
     broadcast(familyId, 'calendarEvent:added', out);
-
-    // Push to Google in background
-    getGoogleConnection(familyId).then(conn => {
-      if (conn) pushEventToGoogle(conn, out).catch(console.error);
-    });
+    getConnections(familyId).then(conns => pushEventToAll(conns, out));
 
     res.status(201).json(out);
   } catch (err) {
@@ -53,11 +57,7 @@ router.put('/:id', async (req, res) => {
     const e = r.rows[0];
     const out = { id: e.id, date: e.date.toISOString().split('T')[0], title: e.title, time: e.time, color: e.color, icon: e.icon, external_id: e.external_id, provider: e.provider };
     broadcast(familyId, 'calendarEvent:updated', out);
-
-    // Push to Google in background
-    getGoogleConnection(familyId).then(conn => {
-      if (conn) pushEventToGoogle(conn, out).catch(console.error);
-    });
+    getConnections(familyId).then(conns => pushEventToAll(conns, out));
 
     res.json(out);
   } catch (err) {
@@ -74,11 +74,14 @@ router.delete('/:id', async (req, res) => {
     );
     broadcast(familyId, 'calendarEvent:deleted', { id: Number(req.params.id) });
 
-    // Delete from Google in background
+    // Delete from connected calendars in background
     const { external_id, provider } = r.rows[0] || {};
-    if (external_id && provider === 'google') {
-      getGoogleConnection(familyId).then(conn => {
-        if (conn) deleteEventFromGoogle(conn, external_id).catch(console.error);
+    if (external_id) {
+      getConnections(familyId).then(conns => {
+        const conn = conns.find(c => c.provider === provider);
+        if (!conn) return;
+        if (provider === 'google') deleteEventFromGoogle(conn, external_id).catch(console.error);
+        if (provider === 'icloud') deleteEventFromIcloud(conn, external_id).catch(console.error);
       });
     }
 

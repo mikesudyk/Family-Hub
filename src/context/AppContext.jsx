@@ -879,6 +879,7 @@ export function AppProvider({ children }) {
       justSignedUp, setJustSignedUp,
       pendingInviteUrl, setPendingInviteUrl,
       calendarConnections, setCalendarConnections,
+      reloadConnections: () => apiFetch('/api/calendar/connections').then(setCalendarConnections).catch(console.error),
       signIn, startOnboarding, completeOnboarding, signOut,
       getAllMembers,
       screen, screenData, navigate, goBack, canGoBack: navStack.length > 0,
