@@ -52,12 +52,16 @@ function googleEventToLocal(event, familyId, memberId) {
     time = d.toISOString().split('T')[1].slice(0, 5); // HH:MM
   }
   return { familyId, memberId, externalId: event.id, provider: 'google',
-    title: event.summary || '(No title)', date, time, color: 'blue', icon: '📅' };
+    title: event.summary || '(No title)', date, time, color: 'blue', icon: '📅',
+    notes: event.description || null,
+    url: event.hangoutLink || event.htmlLink || null };
 }
 
 function localToGoogleEvent(event) {
   return {
     summary: event.title,
+    description: event.notes || undefined,
+    ...(event.url ? { source: { url: event.url, title: event.url } } : {}),
     start: event.time
       ? { dateTime: `${event.date}T${event.time}:00`, timeZone: 'UTC' }
       : { date: event.date },
@@ -110,12 +114,13 @@ async function syncFromGoogle(connection) {
       if (!local) continue;
       await pool.query(
         `INSERT INTO calendar_events
-           (family_id, member_id, date, title, time, color, icon, external_id, provider)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+           (family_id, member_id, date, title, time, color, icon, external_id, provider, notes, url)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
          ON CONFLICT (family_id, external_id, provider) WHERE external_id IS NOT NULL
-         DO UPDATE SET title=$4, date=$3, time=$5`,
+         DO UPDATE SET title=$4, date=$3, time=$5, notes=$10, url=$11`,
         [local.familyId, local.memberId, local.date, local.title,
-         local.time, local.color, local.icon, local.externalId, local.provider]
+         local.time, local.color, local.icon, local.externalId, local.provider,
+         local.notes, local.url]
       );
     }
   }

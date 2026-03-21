@@ -24,15 +24,15 @@ async function pushEventToAll(connections, event) {
 
 router.post('/', async (req, res) => {
   const { familyId } = req;
-  const { date, title, time, color = 'gray', icon = '📅' } = req.body;
+  const { date, title, time, color = 'gray', icon = '📅', notes, url } = req.body;
   if (!date || !title) return res.status(400).json({ error: 'date and title required' });
   try {
     const r = await pool.query(
-      'INSERT INTO calendar_events (family_id, date, title, time, color, icon) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
-      [familyId, date, title, time, color, icon]
+      'INSERT INTO calendar_events (family_id, date, title, time, color, icon, notes, url) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
+      [familyId, date, title, time, color, icon, notes || null, url || null]
     );
     const e = r.rows[0];
-    const out = { id: e.id, date: e.date.toISOString().split('T')[0], title: e.title, time: e.time, color: e.color, icon: e.icon };
+    const out = { id: e.id, date: e.date.toISOString().split('T')[0], title: e.title, time: e.time, color: e.color, icon: e.icon, notes: e.notes || null, url: e.url || null };
     broadcast(familyId, 'calendarEvent:added', out);
     getConnections(familyId).then(conns => pushEventToAll(conns, out));
 
@@ -44,18 +44,20 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   const { familyId } = req;
-  const { title, date, time } = req.body;
+  const { title, date, time, notes, url } = req.body;
   try {
     const r = await pool.query(
       `UPDATE calendar_events
        SET title = COALESCE($1, title),
            date  = COALESCE($2, date),
-           time  = COALESCE($3, time)
-       WHERE id = $4 AND family_id = $5 RETURNING *`,
-      [title, date, time, req.params.id, familyId]
+           time  = COALESCE($3, time),
+           notes = $4,
+           url   = $5
+       WHERE id = $6 AND family_id = $7 RETURNING *`,
+      [title, date, time, notes ?? null, url ?? null, req.params.id, familyId]
     );
     const e = r.rows[0];
-    const out = { id: e.id, date: e.date.toISOString().split('T')[0], title: e.title, time: e.time, color: e.color, icon: e.icon, external_id: e.external_id, provider: e.provider };
+    const out = { id: e.id, date: e.date.toISOString().split('T')[0], title: e.title, time: e.time, color: e.color, icon: e.icon, notes: e.notes || null, url: e.url || null, external_id: e.external_id, provider: e.provider };
     broadcast(familyId, 'calendarEvent:updated', out);
     getConnections(familyId).then(conns => pushEventToAll(conns, out));
 

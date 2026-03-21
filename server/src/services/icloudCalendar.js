@@ -86,7 +86,9 @@ function parseVEvents(icsStr) {
     if (!uid || !dtstart || status === 'CANCELLED') continue;
     const { date, time } = parseDT(dtstart);
     if (!date) continue;
-    events.push({ uid, summary, date, time });
+    const notes = getICSProp(block, 'DESCRIPTION') || null;
+    const url   = getICSProp(block, 'URL') || null;
+    events.push({ uid, summary, date, time, notes, url });
   }
   return events;
 }
@@ -211,12 +213,12 @@ async function syncFromIcloud(connection) {
       try {
         await pool.query(
           `INSERT INTO calendar_events
-             (family_id, member_id, date, title, time, color, icon, external_id, provider)
-           VALUES ($1,$2,$3,$4,$5,'gray','🍎',$6,'icloud')
+             (family_id, member_id, date, title, time, color, icon, external_id, provider, notes, url)
+           VALUES ($1,$2,$3,$4,$5,'gray','🍎',$6,'icloud',$7,$8)
            ON CONFLICT (family_id, external_id, provider) WHERE external_id IS NOT NULL
-           DO UPDATE SET title=$4, date=$3, time=$5`,
+           DO UPDATE SET title=$4, date=$3, time=$5, notes=$7, url=$8`,
           [connection.family_id, connection.member_id,
-           event.date, event.summary, event.time, event.uid]
+           event.date, event.summary, event.time, event.uid, event.notes, event.url]
         );
         synced++;
       } catch (err) {
@@ -257,14 +259,17 @@ async function pushEventToIcloud(connection, event) {
     ? `DTSTART:${event.date.replace(/-/g,'')}T${hhmm}00\r\nDTEND:${event.date.replace(/-/g,'')}T${hhmm}00`
     : `DTSTART;VALUE=DATE:${event.date.replace(/-/g,'')}\r\nDTEND;VALUE=DATE:${event.date.replace(/-/g,'')}`;
 
-  const ics = [
+  const lines = [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Aeramea//Family Hub//EN',
     'BEGIN:VEVENT',
     `UID:${uid}`, `DTSTAMP:${stamp}`,
     dtPart,
     `SUMMARY:${event.title}`,
-    'END:VEVENT', 'END:VCALENDAR',
-  ].join('\r\n');
+  ];
+  if (event.notes) lines.push(`DESCRIPTION:${event.notes.replace(/\n/g, '\\n')}`);
+  if (event.url)   lines.push(`URL:${event.url}`);
+  lines.push('END:VEVENT', 'END:VCALENDAR');
+  const ics = lines.join('\r\n');
 
   const res = await fetch(`${calendarUrl}${uid}.ics`, {
     method: 'PUT',

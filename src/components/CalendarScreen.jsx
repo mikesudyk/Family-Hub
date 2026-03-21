@@ -48,11 +48,13 @@ function AddEventForm({ onSave, onCancel }) {
   const [date, setDate] = useState(today);
   const [startTime, setStartTime] = useState('');
   const [duration, setDuration] = useState(0);
+  const [notes, setNotes] = useState('');
+  const [url, setUrl] = useState('');
 
   function handleSave() {
     const t = title.trim();
     if (!t) return;
-    onSave({ title: t, date: date || today, time: formatTimeRange(startTime, duration), color: 'gray', icon: '📅' });
+    onSave({ title: t, date: date || today, time: formatTimeRange(startTime, duration), color: 'gray', icon: '📅', notes: notes.trim() || null, url: url.trim() || null });
   }
 
   return (
@@ -88,6 +90,20 @@ function AddEventForm({ onSave, onCancel }) {
       >
         {DURATIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
       </select>
+      <textarea
+        value={notes}
+        onChange={e => setNotes(e.target.value)}
+        placeholder="Notes (optional)"
+        rows={2}
+        className="w-full bg-gray-50 rounded-lg px-3 py-2 text-sm border-none outline-none resize-none"
+      />
+      <input
+        type="url"
+        value={url}
+        onChange={e => setUrl(e.target.value)}
+        placeholder="URL (optional)"
+        className="w-full bg-gray-50 rounded-lg px-3 py-2 text-sm border-none outline-none"
+      />
       <div className="flex gap-2 pt-1">
         <button
           onClick={handleSave}
@@ -103,19 +119,27 @@ function AddEventForm({ onSave, onCancel }) {
 }
 
 function EventRow({ event, isUserEvent, onUpdate, onDelete }) {
+  const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(event.title);
   const [date, setDate] = useState(event.date);
   const [startTime, setStartTime] = useState('');
   const [duration, setDuration] = useState(0);
+  const [notes, setNotes] = useState(event.notes || '');
+  const [url, setUrl] = useState(event.url || '');
+
+  const hasInfo = event.notes || event.url;
 
   function handleSave() {
     onUpdate({
       title: title.trim() || event.title,
       date: date || event.date,
       time: formatTimeRange(startTime, duration) || event.time,
+      notes: notes.trim() || null,
+      url: url.trim() || null,
     });
     setEditing(false);
+    setExpanded(false);
   }
 
   if (editing) {
@@ -151,6 +175,20 @@ function EventRow({ event, isUserEvent, onUpdate, onDelete }) {
         >
           {DURATIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
         </select>
+        <textarea
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          placeholder="Notes (optional)"
+          rows={2}
+          className="w-full bg-gray-50 rounded-lg px-3 py-1.5 text-sm border-none outline-none resize-none"
+        />
+        <input
+          type="url"
+          value={url}
+          onChange={e => setUrl(e.target.value)}
+          placeholder="URL (optional)"
+          className="w-full bg-gray-50 rounded-lg px-3 py-1.5 text-sm border-none outline-none"
+        />
         <div className="flex items-center gap-2">
           <button onClick={handleSave} className="text-xs font-semibold bg-gray-900 text-white px-3 py-1.5 rounded-lg border-none cursor-pointer">Save</button>
           <button onClick={() => setEditing(false)} className="text-xs text-gray-400 bg-transparent border-none cursor-pointer">Cancel</button>
@@ -161,19 +199,30 @@ function EventRow({ event, isUserEvent, onUpdate, onDelete }) {
   }
 
   return (
-    <div
-      onClick={() => isUserEvent && setEditing(true)}
-      className={`flex items-center gap-2.5 px-1 py-0.5 ${isUserEvent ? 'cursor-pointer' : ''}`}
-    >
-      <span className="text-sm leading-none">{event.icon}</span>
-      <div className="flex-1 min-w-0">
-        <div className="text-sm font-semibold text-gray-900 truncate">{event.title}</div>
+    <div>
+      <div
+        onClick={() => isUserEvent ? setEditing(true) : hasInfo && setExpanded(v => !v)}
+        className={`flex items-center gap-2.5 px-1 py-0.5 ${isUserEvent || hasInfo ? 'cursor-pointer' : ''}`}
+      >
+        <span className="text-sm leading-none">{event.icon}</span>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold text-gray-900 truncate">{event.title}</div>
+        </div>
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${getColorClass(event.color)}`}>
+          {event.time}
+        </span>
+        {isUserEvent && <span className="text-gray-300 text-xs">✏️</span>}
+        {!isUserEvent && hasInfo && <span className="text-gray-300 text-xs">{expanded ? '▲' : '▼'}</span>}
       </div>
-      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${getColorClass(event.color)}`}>
-        {event.time}
-      </span>
-      {isUserEvent && (
-        <span className="text-gray-300 text-xs">✏️</span>
+      {expanded && hasInfo && (
+        <div className="px-1 pt-1 pb-0.5 space-y-1">
+          {event.notes && <p className="text-xs text-gray-500 whitespace-pre-wrap">{event.notes}</p>}
+          {event.url && (
+            <a href={event.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 underline break-all">
+              {event.url}
+            </a>
+          )}
+        </div>
       )}
     </div>
   );

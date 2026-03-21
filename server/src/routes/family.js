@@ -168,6 +168,8 @@ router.get('/', async (req, res) => {
       userCalendarEvents: calendarRes.rows.map(e => ({
         id: e.id, date: e.date.toISOString().split('T')[0],
         title: e.title, time: e.time, color: e.color, icon: e.icon,
+        notes: e.notes || null, url: e.url || null,
+        provider: e.provider || null,
       })),
     });
   } catch (err) {
