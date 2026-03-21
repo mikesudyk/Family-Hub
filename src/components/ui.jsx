@@ -241,12 +241,12 @@ function getRepeatLabel(repeat) {
   return null;
 }
 
-export function ChoreRow({ chore, onClick }) {
+export function ChoreRow({ chore, onClick, dimmed = false }) {
   const repeatLabel = getRepeatLabel(chore.repeat);
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer"
+      className={`flex items-center gap-3 py-3 w-full bg-transparent border-none cursor-pointer ${dimmed ? 'opacity-40' : ''}`}
       style={{ borderBottom: '1px solid #f3f4f6' }}
     >
       <div className="text-2xl w-9 text-center">{chore.icon}</div>
@@ -261,7 +261,7 @@ export function ChoreRow({ chore, onClick }) {
           <div className="text-xs text-green-500">✓ Done</div>
         )}
       </div>
-      <div className="text-xl">{chore.done ? '✅' : <UncheckedCircle />}</div>
+      <div className="text-xl">{dimmed ? null : chore.done ? '✅' : <UncheckedCircle />}</div>
     </button>
   );
 }

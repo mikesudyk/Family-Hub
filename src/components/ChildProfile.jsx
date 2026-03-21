@@ -123,7 +123,7 @@ function WeekView({ chores }) {
 }
 
 export default function ChildProfile({ memberId }) {
-  const { navigate, getMember, getTier, getChores, doneCount, totalCount, getGoals, toggleGoal,
+  const { navigate, getMember, getTier, getChores, getGoals, toggleGoal,
           getPersonalTodos, addPersonalTodo, removePersonalTodo, togglePersonalTodo } = useApp();
   const [weekView, setWeekView] = useState(false);
   const [addingTodo, setAddingTodo] = useState(false);
@@ -134,8 +134,8 @@ export default function ChildProfile({ memberId }) {
   const tier      = getTier(member);
   const chores    = getChores(member.id);
   const todayChores = chores.filter(appliesToday);
-  const done      = doneCount(member.id);
-  const total     = totalCount(member.id);
+  const done      = todayChores.filter(c => c.done).length;
+  const total     = todayChores.length;
 
   return (
     <div className="p-5">
@@ -183,16 +183,19 @@ export default function ChildProfile({ memberId }) {
       {weekView ? (
         <WeekView chores={chores} />
       ) : (
-        todayChores.length === 0 ? (
-          <div className="bg-white rounded-xl p-4 text-center text-gray-400 text-sm">No chores today.</div>
+        chores.length === 0 ? (
+          <div className="bg-white rounded-xl p-4 text-center text-gray-400 text-sm">No chores assigned.</div>
         ) : (
-          todayChores.map(c => (
-            <ChoreRow
-              key={c.id}
-              chore={c}
-              onClick={() => navigate('chore-detail', { choreId: c.id, memberId: member.id })}
-            />
-          ))
+          <div>
+            {chores.map(c => (
+              <ChoreRow
+                key={c.id}
+                chore={c}
+                dimmed={!appliesToday(c)}
+                onClick={() => navigate('chore-detail', { choreId: c.id, memberId: member.id })}
+              />
+            ))}
+          </div>
         )
       )}
 
