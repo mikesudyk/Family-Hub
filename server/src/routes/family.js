@@ -149,6 +149,7 @@ router.get('/', async (req, res) => {
       countdownMode: settings.countdown_mode || 'birthday',
       bgImage: settings.bg_image || null,
       printMode: settings.print_mode || 'day',
+      clock24h: settings.clock_24h || false,
       activeListEvent: settings.active_list_event || null,
       members: membersRes.rows.map(m => ({
         id: m.id, name: m.name, avatar: m.avatar,

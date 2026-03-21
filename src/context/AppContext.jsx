@@ -27,6 +27,7 @@ export function AppProvider({ children }) {
   const [countdown, setCountdown]     = useState({ name: 'Summer Vacation', date: '2026-06-15' });
   const [countdownMode, setCountdownMode] = useState('birthday');
   const [printMode, setPrintMode]     = useState('day');
+  const [clock24h, setClock24h]       = useState(false);
   const [bgImage, setBgImage]         = useState('/default-bg.jpeg');
   const [activeListEvent, setActiveListEvent] = useState(null);
 
@@ -58,6 +59,7 @@ export function AppProvider({ children }) {
     if (data.countdownMode) setCountdownMode(data.countdownMode);
     if (data.bgImage) setBgImage(data.bgImage);
     if (data.printMode) setPrintMode(data.printMode);
+    if (data.clock24h !== undefined) setClock24h(data.clock24h);
     if (data.activeListEvent) setActiveListEvent(data.activeListEvent);
     setChores(data.chores || {});
     setChoreLists(data.choreLists || []);
@@ -84,6 +86,7 @@ export function AppProvider({ children }) {
       if (u.countdownMode !== undefined) setCountdownMode(u.countdownMode);
       if (u.bgImage !== undefined) setBgImage(u.bgImage);
       if (u.printMode !== undefined) setPrintMode(u.printMode);
+      if (u.clock24h !== undefined) setClock24h(u.clock24h);
     });
 
     // Members
@@ -873,6 +876,7 @@ export function AppProvider({ children }) {
     if (changes.countdownMode !== undefined) setCountdownMode(changes.countdownMode);
     if (changes.bgImage !== undefined) setBgImage(changes.bgImage);
     if (changes.printMode !== undefined) setPrintMode(changes.printMode);
+    if (changes.clock24h !== undefined) setClock24h(changes.clock24h);
     apiFetch('/api/settings', { method: 'PUT', body: JSON.stringify(changes) }).catch(console.error);
   }
 
@@ -893,7 +897,7 @@ export function AppProvider({ children }) {
       tierOverrides, setTier, getTier,
       memberOverrides, updateMember, addMember,
       countdown, setCountdown, countdownMode, setCountdownMode,
-      printMode, setPrintMode,
+      printMode, setPrintMode, clock24h,
       getMember, getChores, doneCount, totalCount,
       choreLists, addChoreList, deleteChoreList, updateChoreListName,
       addChoreToList, removeChoreFromList, getChoreList,

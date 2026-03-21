@@ -1,0 +1,2 @@
+ALTER TABLE family_settings
+  ADD COLUMN IF NOT EXISTS clock_24h BOOLEAN DEFAULT false;

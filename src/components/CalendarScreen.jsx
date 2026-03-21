@@ -4,6 +4,33 @@ import { apiFetch } from '../api/client';
 import { CALENDAR_EVENTS, getColorClass } from '../data/calendar';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// Format a stored time string (HH:MM from sync, or "12:27 PM" from user events) for display
+function formatTime(timeStr, use24h) {
+  if (!timeStr || timeStr === 'All day') return timeStr || 'All day';
+
+  // Display string already has AM/PM — convert to 24h if needed
+  if (/AM|PM/i.test(timeStr)) {
+    if (!use24h) return timeStr;
+    return timeStr.split('–').map(part => {
+      const m = part.trim().match(/^(\d+)(?::(\d+))?\s*(AM|PM)$/i);
+      if (!m) return part.trim();
+      let h = parseInt(m[1]); const min = parseInt(m[2] || '0');
+      if (m[3].toUpperCase() === 'AM' && h === 12) h = 0;
+      if (m[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+      return `${h.toString().padStart(2,'0')}:${min.toString().padStart(2,'0')}`;
+    }).join('–');
+  }
+
+  // Raw HH:MM from sync
+  const match = timeStr.match(/^(\d{2}):(\d{2})$/);
+  if (!match) return timeStr;
+  if (use24h) return timeStr;
+  const h = parseInt(match[1]); const m = parseInt(match[2]);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return m === 0 ? `${h12} ${ampm}` : `${h12}:${m.toString().padStart(2,'0')} ${ampm}`;
+}
 const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 const DURATIONS = [
@@ -118,7 +145,7 @@ function AddEventForm({ onSave, onCancel }) {
   );
 }
 
-function EventRow({ event, isUserEvent, onUpdate, onDelete }) {
+function EventRow({ event, isUserEvent, onUpdate, onDelete, clock24h }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(event.title);
@@ -209,7 +236,7 @@ function EventRow({ event, isUserEvent, onUpdate, onDelete }) {
           <div className="text-sm font-semibold text-gray-900 truncate">{event.title}</div>
         </div>
         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${getColorClass(event.color)}`}>
-          {event.time}
+          {formatTime(event.time, clock24h)}
         </span>
         {isUserEvent && <span className="text-gray-300 text-xs">✏️</span>}
         {!isUserEvent && hasInfo && <span className="text-gray-300 text-xs">{expanded ? '▲' : '▼'}</span>}
@@ -229,7 +256,7 @@ function EventRow({ event, isUserEvent, onUpdate, onDelete }) {
 }
 
 export default function CalendarScreen() {
-  const { userCalendarEvents, addUserCalendarEvent, updateUserCalendarEvent, deleteUserCalendarEvent, calendarConnections, navigate, refresh } = useApp();
+  const { userCalendarEvents, addUserCalendarEvent, updateUserCalendarEvent, deleteUserCalendarEvent, calendarConnections, navigate, refresh, clock24h } = useApp();
   const [showAdd, setShowAdd] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const hasConnections = calendarConnections.length > 0;
@@ -324,6 +351,7 @@ export default function CalendarScreen() {
                       isUserEvent={userEventIds.has(event.id)}
                       onUpdate={changes => updateUserCalendarEvent(event.id, changes)}
                       onDelete={() => deleteUserCalendarEvent(event.id)}
+                      clock24h={clock24h}
                     />
                   ))}
                 </div>

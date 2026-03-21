@@ -7,7 +7,7 @@ const router = express.Router();
 // PUT /api/settings — update hub name and/or any settings field
 router.put('/', async (req, res) => {
   const { familyId } = req;
-  const { hubName, countdownName, countdownDate, countdownMode, bgImage, printMode } = req.body;
+  const { hubName, countdownName, countdownDate, countdownMode, bgImage, printMode, clock24h } = req.body;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -22,14 +22,15 @@ router.put('/', async (req, res) => {
            countdown_date = COALESCE($2::date, countdown_date),
            countdown_mode = COALESCE($3, countdown_mode),
            bg_image       = COALESCE($4, bg_image),
-           print_mode     = COALESCE($5, print_mode)
+           print_mode     = COALESCE($5, print_mode),
+           clock_24h      = COALESCE($7, clock_24h)
        WHERE family_id = $6`,
-      [countdownName, countdownDate || null, countdownMode, bgImage, printMode, familyId]
+      [countdownName, countdownDate || null, countdownMode, bgImage, printMode, familyId, clock24h ?? null]
     );
 
     await client.query('COMMIT');
 
-    const update = { hubName, countdownName, countdownDate, countdownMode, bgImage, printMode };
+    const update = { hubName, countdownName, countdownDate, countdownMode, bgImage, printMode, clock24h };
     broadcast(familyId, 'settings:updated', update);
     res.json({ ok: true });
   } catch (err) {

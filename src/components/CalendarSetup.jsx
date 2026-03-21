@@ -127,7 +127,7 @@ function ICloudConnectPanel({ onConnected }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function CalendarSetup({ onDone, inSettings = false }) {
-  const { calendarConnections, reloadConnections, refresh, pendingInviteUrl, setPendingInviteUrl } = useApp();
+  const { calendarConnections, reloadConnections, refresh, pendingInviteUrl, setPendingInviteUrl, clock24h, updateSettings } = useApp();
   const [connecting, setConnecting]         = useState(false);
   const [showICloudForm, setShowICloudForm] = useState(false);
   const [copied, setCopied]                 = useState(false);
@@ -306,6 +306,25 @@ export default function CalendarSetup({ onDone, inSettings = false }) {
             </div>
           );
         })()}
+
+        {/* Clock format */}
+        <div className="bg-white border border-gray-100 rounded-2xl p-4 mt-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center flex-shrink-0 text-lg">
+              🕐
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-bold text-gray-900">Clock Format</div>
+              <div className="text-xs text-gray-400 mt-0.5">{clock24h ? '24-hour (14:30)' : '12-hour (2:30 PM)'}</div>
+            </div>
+            <button
+              onClick={() => updateSettings({ clock24h: !clock24h })}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors border-none cursor-pointer ${clock24h ? 'bg-gray-900' : 'bg-gray-200'}`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${clock24h ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
+          </div>
+        </div>
       </div>
 
       {!inSettings && (
