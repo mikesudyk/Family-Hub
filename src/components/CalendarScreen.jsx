@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { apiFetch } from '../api/client';
 import { CALENDAR_EVENTS, getColorClass } from '../data/calendar';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -179,9 +180,20 @@ function EventRow({ event, isUserEvent, onUpdate, onDelete }) {
 }
 
 export default function CalendarScreen() {
-  const { userCalendarEvents, addUserCalendarEvent, updateUserCalendarEvent, deleteUserCalendarEvent, calendarConnections, navigate } = useApp();
+  const { userCalendarEvents, addUserCalendarEvent, updateUserCalendarEvent, deleteUserCalendarEvent, calendarConnections, navigate, refresh } = useApp();
   const [showAdd, setShowAdd] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const hasConnections = calendarConnections.length > 0;
+
+  async function handleSync() {
+    setSyncing(true);
+    try {
+      await apiFetch('/api/calendar/sync', { method: 'POST' });
+      await refresh();
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
 
@@ -215,6 +227,15 @@ export default function CalendarScreen() {
             className="text-sm font-semibold text-blue-500 bg-transparent border-none cursor-pointer"
           >
             Connect →
+          </button>
+        )}
+        {hasConnections && (
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="text-sm font-semibold text-blue-500 bg-transparent border-none cursor-pointer disabled:opacity-40"
+          >
+            {syncing ? 'Syncing…' : '↻ Sync'}
           </button>
         )}
         <button
