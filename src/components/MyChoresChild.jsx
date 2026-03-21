@@ -3,11 +3,18 @@ import { BackButton, UncheckedCircle } from './ui';
 
 const DAY_ABBRS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+function parseRepeat(repeat) {
+  if (!repeat || repeat === 'once' || repeat === 'daily') return repeat;
+  if (Array.isArray(repeat)) return repeat;
+  try { const a = JSON.parse(repeat); if (Array.isArray(a)) return a; } catch {}
+  return repeat.split(',').map(s => s.trim()).filter(Boolean);
+}
+
 function appliesToday(chore) {
-  const { repeat } = chore;
-  if (!repeat || repeat === 'once') return true;
-  if (repeat === 'daily') return true;
-  if (Array.isArray(repeat)) return repeat.includes(DAY_ABBRS[new Date().getDay()]);
+  const r = parseRepeat(chore.repeat);
+  if (!r || r === 'once') return true;
+  if (r === 'daily') return true;
+  if (Array.isArray(r)) return r.includes(DAY_ABBRS[new Date().getDay()]);
   return true;
 }
 
@@ -43,11 +50,11 @@ export default function MyChoresChild({ memberId }) {
           >
             <div className="text-4xl mb-2">{c.icon}</div>
             <div className="font-bold text-sm mb-1 text-center">{c.name}</div>
-            {c.repeat && c.repeat !== 'once' && (
-              <div className="text-xs text-gray-400 mb-1">
-                {c.repeat === 'daily' ? 'Every day' : Array.isArray(c.repeat) ? c.repeat.join(' · ') : ''}
-              </div>
-            )}
+            {(() => {
+              const r = parseRepeat(c.repeat);
+              const label = !r || r === 'once' ? null : r === 'daily' ? 'Every day' : Array.isArray(r) ? r.join(' · ') : null;
+              return label ? <div className="text-xs font-medium text-blue-500 mb-1">{label}</div> : null;
+            })()}
             <div className="text-2xl">{c.done ? '✅' : <UncheckedCircle />}</div>
           </button>
         ))}

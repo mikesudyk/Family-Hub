@@ -233,7 +233,16 @@ export function MenuRow({ onClick, children }) {
   );
 }
 
+function getRepeatLabel(repeat) {
+  if (!repeat || repeat === 'once') return null;
+  if (repeat === 'daily') return 'Every day';
+  if (Array.isArray(repeat)) return repeat.join(' · ');
+  try { const a = JSON.parse(repeat); if (Array.isArray(a)) return a.join(' · '); } catch {}
+  return null;
+}
+
 export function ChoreRow({ chore, onClick }) {
+  const repeatLabel = getRepeatLabel(chore.repeat);
   return (
     <button
       onClick={onClick}
@@ -245,8 +254,11 @@ export function ChoreRow({ chore, onClick }) {
         <div className={`font-semibold text-sm ${chore.done ? 'line-through text-gray-400' : 'text-gray-900'}`}>
           {chore.name}
         </div>
+        {repeatLabel && !chore.done && (
+          <div className="text-xs font-medium text-blue-500 mt-0.5">{repeatLabel}</div>
+        )}
         {chore.done && (
-          <div className="text-xs text-green-500">✓ Done at {chore.doneAt}</div>
+          <div className="text-xs text-green-500">✓ Done</div>
         )}
       </div>
       <div className="text-xl">{chore.done ? '✅' : <UncheckedCircle />}</div>

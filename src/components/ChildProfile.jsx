@@ -17,12 +17,32 @@ function getWeekDays() {
   });
 }
 
+function parseRepeat(repeat) {
+  if (!repeat || repeat === 'once' || repeat === 'daily') return repeat;
+  if (Array.isArray(repeat)) return repeat;
+  try { const a = JSON.parse(repeat); if (Array.isArray(a)) return a; } catch {}
+  // legacy comma-separated fallback
+  return repeat.split(',').map(s => s.trim()).filter(Boolean);
+}
+
+function repeatLabel(repeat) {
+  const r = parseRepeat(repeat);
+  if (!r || r === 'once') return null;
+  if (r === 'daily') return 'Every day';
+  if (Array.isArray(r)) return r.join(' · ');
+  return null;
+}
+
 function choreAppliesOnDay(chore, dayAbbr, isToday) {
-  const { repeat } = chore;
-  if (!repeat || repeat === 'once') return isToday;
-  if (repeat === 'daily') return true;
-  if (Array.isArray(repeat)) return repeat.includes(dayAbbr);
+  const r = parseRepeat(chore.repeat);
+  if (!r || r === 'once') return isToday;
+  if (r === 'daily') return true;
+  if (Array.isArray(r)) return r.includes(dayAbbr);
   return false;
+}
+
+function appliesToday(chore) {
+  return choreAppliesOnDay(chore, DAY_ABBRS[new Date().getDay()], true);
 }
 
 function WeekView({ chores }) {
@@ -72,17 +92,25 @@ function WeekView({ chores }) {
               <div className="text-xs text-gray-300">No chores</div>
             ) : (
               <div className="space-y-1">
-                {dayChores.map(c => (
-                  <div key={c.id} className="flex items-center gap-2">
-                    <span className="text-sm w-5 text-center">{c.icon}</span>
-                    <span className={`text-sm flex-1 ${isToday && c.done ? 'line-through text-gray-400' : 'text-gray-800'}`}>
-                      {c.name}
-                    </span>
-                    {isToday && (
-                      <span className="text-sm">{c.done ? '✅' : <UncheckedCircle />}</span>
-                    )}
-                  </div>
-                ))}
+                {dayChores.map(c => {
+                  const label = repeatLabel(c.repeat);
+                  return (
+                    <div key={c.id} className="flex items-center gap-2">
+                      <span className="text-sm w-5 text-center">{c.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <span className={`text-sm ${isToday && c.done ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                          {c.name}
+                        </span>
+                        {label && (
+                          <div className="text-xs font-medium text-blue-500">{label}</div>
+                        )}
+                      </div>
+                      {isToday && (
+                        <span className="text-sm flex-shrink-0">{c.done ? '✅' : <UncheckedCircle />}</span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -101,10 +129,11 @@ export default function ChildProfile({ memberId }) {
   const member = getMember(memberId);
   if (!member) return null;
 
-  const tier   = getTier(member);
-  const chores = getChores(member.id);
-  const done   = doneCount(member.id);
-  const total  = totalCount(member.id);
+  const tier      = getTier(member);
+  const chores    = getChores(member.id);
+  const todayChores = chores.filter(appliesToday);
+  const done      = doneCount(member.id);
+  const total     = totalCount(member.id);
 
   return (
     <div className="p-5">
@@ -152,10 +181,10 @@ export default function ChildProfile({ memberId }) {
       {weekView ? (
         <WeekView chores={chores} />
       ) : (
-        chores.length === 0 ? (
+        todayChores.length === 0 ? (
           <div className="bg-white rounded-xl p-4 text-center text-gray-400 text-sm">No chores today.</div>
         ) : (
-          chores.map(c => (
+          todayChores.map(c => (
             <ChoreRow
               key={c.id}
               chore={c}
