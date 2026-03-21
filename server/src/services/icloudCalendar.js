@@ -213,7 +213,7 @@ async function syncFromIcloud(connection) {
           `INSERT INTO calendar_events
              (family_id, member_id, date, title, time, color, icon, external_id, provider)
            VALUES ($1,$2,$3,$4,$5,'gray','🍎',$6,'icloud')
-           ON CONFLICT (family_id, external_id, provider)
+           ON CONFLICT (family_id, external_id, provider) WHERE external_id IS NOT NULL
            DO UPDATE SET title=$4, date=$3, time=$5`,
           [connection.family_id, connection.member_id,
            event.date, event.summary, event.time, event.uid]

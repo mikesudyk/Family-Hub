@@ -112,7 +112,7 @@ async function syncFromGoogle(connection) {
         `INSERT INTO calendar_events
            (family_id, member_id, date, title, time, color, icon, external_id, provider)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-         ON CONFLICT (family_id, external_id, provider)
+         ON CONFLICT (family_id, external_id, provider) WHERE external_id IS NOT NULL
          DO UPDATE SET title=$4, date=$3, time=$5`,
         [local.familyId, local.memberId, local.date, local.title,
          local.time, local.color, local.icon, local.externalId, local.provider]
