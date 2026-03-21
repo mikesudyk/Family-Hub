@@ -5,6 +5,12 @@ import { BackButton, SectionLabel, ProgressRing, ChoreRow, AvatarRing, Unchecked
 const DAY_ABBRS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DAY_FULL  = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+function computeAge(birthday) {
+  if (!birthday) return null;
+  const diff = Date.now() - new Date(birthday + 'T00:00:00').getTime();
+  return Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
+}
+
 function getWeekDays() {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   // Start from Sunday of this week
@@ -155,7 +161,7 @@ export default function ChildProfile({ memberId }) {
         <AvatarRing member={member} size={76} />
         <div>
           <div className="text-lg font-extrabold">{member.name}</div>
-          <div className="text-xs text-gray-400">Age {member.age} · {tier}</div>
+          {computeAge(member.birthday) !== null && <div className="text-xs text-gray-400">Age {computeAge(member.birthday)}</div>}
           <div className="text-sm font-semibold mt-1" style={{ color: '#4A90E2' }}>
             {total === 0 ? 'No chores today' : total - done === 0 ? '🎉 All done!' : `${done} of ${total} done today`}
           </div>
