@@ -242,7 +242,10 @@ export function AppProvider({ children }) {
     socket.on('stores:updated', ({ stores: s }) => setStores(s));
 
     // Calendar
-    socket.on('calendarEvent:added', e => setUserCalendarEvents(prev => [...prev, e]));
+    socket.on('calendarEvent:added', e => setUserCalendarEvents(prev => {
+      if (prev.some(x => x.id === e.id)) return prev;
+      return [...prev, e];
+    }));
     socket.on('calendarEvent:updated', e => setUserCalendarEvents(prev =>
       prev.map(x => x.id === e.id ? { ...x, ...e } : x)
     ));
@@ -847,7 +850,9 @@ export function AppProvider({ children }) {
       method: 'POST',
       body: JSON.stringify(event),
     }).then(e => {
-      setUserCalendarEvents(prev => prev.map(x => x.id === tempId ? { ...x, id: e.id } : x));
+      setUserCalendarEvents(prev =>
+        prev.filter(x => x.id !== e.id).map(x => x.id === tempId ? { ...x, id: e.id } : x)
+      );
     }).catch(console.error);
   }
 

@@ -230,6 +230,20 @@ async function syncFromIcloud(connection) {
 
 // ── Push local event → iCloud ─────────────────────────────────────────────────
 
+// Parse a display time string like "12:27 PM" or "12:27 PM–1:27 PM" → "1227" (HHMM, 24h)
+function parseDisplayTimeToHHMM(timeStr) {
+  if (!timeStr) return null;
+  const part = timeStr.split('–')[0].trim();
+  const m = part.match(/^(\d+)(?::(\d+))?\s*(AM|PM)$/i);
+  if (!m) return null;
+  let h = parseInt(m[1]);
+  const min = parseInt(m[2] || '0');
+  const ampm = m[3].toUpperCase();
+  if (ampm === 'AM' && h === 12) h = 0;
+  if (ampm === 'PM' && h !== 12) h += 12;
+  return `${h.toString().padStart(2, '0')}${min.toString().padStart(2, '0')}`;
+}
+
 async function pushEventToIcloud(connection, event) {
   const appleId     = connection.access_token;
   const password    = connection.refresh_token;
@@ -237,8 +251,10 @@ async function pushEventToIcloud(connection, event) {
 
   const uid   = `aeramea-${event.id}-${Date.now()}@aeramea.com`;
   const stamp = new Date().toISOString().replace(/[-:.]/g, '').slice(0, 15) + 'Z';
-  const dtPart = event.time
-    ? `DTSTART:${event.date.replace(/-/g,'')  }T${event.time.replace(':','')}00Z\r\nDTEND:${event.date.replace(/-/g,'')}T${event.time.replace(':','')}00Z`
+  const hhmm  = parseDisplayTimeToHHMM(event.time);
+  // Use floating time (no Z, no TZID) so the calendar app treats it as local time
+  const dtPart = hhmm
+    ? `DTSTART:${event.date.replace(/-/g,'')}T${hhmm}00\r\nDTEND:${event.date.replace(/-/g,'')}T${hhmm}00`
     : `DTSTART;VALUE=DATE:${event.date.replace(/-/g,'')}\r\nDTEND;VALUE=DATE:${event.date.replace(/-/g,'')}`;
 
   const ics = [
