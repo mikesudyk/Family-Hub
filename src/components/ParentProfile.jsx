@@ -1,11 +1,48 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BackButton } from './ui';
-import { CALENDAR_EVENTS, getColorClass } from '../data/calendar';
+import { getColorClass } from '../data/calendar';
 import { getStoreColor, groupByStore } from '../utils/storeColors';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MEAL_SLOTS = ['Breakfast', 'Lunch', 'Dinner'];
+
+function formatTime(timeStr, use24h = false) {
+  if (!timeStr || timeStr === 'All day') return timeStr || 'All day';
+  if (/AM|PM/i.test(timeStr)) {
+    if (!use24h) return timeStr;
+    return timeStr.split('–').map(part => {
+      const m = part.trim().match(/^(\d+)(?::(\d+))?\s*(AM|PM)$/i);
+      if (!m) return part.trim();
+      let h = parseInt(m[1]); const min = parseInt(m[2] || '0');
+      if (m[3].toUpperCase() === 'AM' && h === 12) h = 0;
+      if (m[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+      return `${h.toString().padStart(2,'0')}:${min.toString().padStart(2,'0')}`;
+    }).join('–');
+  }
+  const match = timeStr.match(/^(\d{2}):(\d{2})$/);
+  if (!match) return timeStr;
+  if (use24h) return timeStr;
+  const h = parseInt(match[1]); const m = parseInt(match[2]);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return m === 0 ? `${h12} ${ampm}` : `${h12}:${m.toString().padStart(2,'0')} ${ampm}`;
+}
+
+function eventSortKey(event) {
+  const t = event.time;
+  if (!t || t === 'All day') return -1;
+  const hhmm = t.match(/^(\d{1,2}):(\d{2})/);
+  if (hhmm) return parseInt(hhmm[1]) * 60 + parseInt(hhmm[2]);
+  const ampm = t.match(/^(\d+)(?::(\d+))?\s*(AM|PM)/i);
+  if (ampm) {
+    let h = parseInt(ampm[1]); const m = parseInt(ampm[2] || '0');
+    if (ampm[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+    if (ampm[3].toUpperCase() === 'AM' && h === 12) h = 0;
+    return h * 60 + m;
+  }
+  return Infinity;
+}
 const MEAL_ICONS = { Breakfast: '🍳', Lunch: '🥪', Dinner: '🍽️' };
 
 function dateStr(daysAhead) {
@@ -111,8 +148,11 @@ function AddMealRow({ dateStr, getMeal, setMeal, autoOpen = false, onClose }) {
   );
 }
 
-function DaySection({ ds, allEvents, getMeal, setMeal, addUserCalendarEvent, isLast }) {
-  const dayEvents = allEvents.filter(e => e.date === ds);
+function DaySection({ ds, allEvents, getMeal, setMeal, addUserCalendarEvent, isLast, clock24h }) {
+  const dayEvents = allEvents
+    .filter(e => e.date === ds)
+    .slice()
+    .sort((a, b) => eventSortKey(a) - eventSortKey(b));
   const today = new Date().toISOString().split('T')[0];
   const isToday = ds === today;
 
@@ -189,7 +229,7 @@ function DaySection({ ds, allEvents, getMeal, setMeal, addUserCalendarEvent, isL
               <span className="text-base leading-none w-5 text-center flex-shrink-0">{event.icon}</span>
               <span className="text-sm text-gray-800 truncate flex-1">{event.title}</span>
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${getColorClass(event.color)}`}>
-                {event.time}
+                {formatTime(event.time, clock24h)}
               </span>
             </div>
           ))}
@@ -642,7 +682,7 @@ function TopPriorities({ memberId }) {
 
 export default function ParentProfile({ memberId }) {
   const { navigate, getMember, getTier, getMeal, setMeal, userCalendarEvents, addUserCalendarEvent,
-          getPersonalTodos, addPersonalTodo, removePersonalTodo, togglePersonalTodo } = useApp();
+          getPersonalTodos, addPersonalTodo, removePersonalTodo, togglePersonalTodo, clock24h } = useApp();
   const member = getMember(memberId);
   const [showShopping, setShowShopping] = useState(false);
   const [addingTodo, setAddingTodo] = useState(false);
@@ -652,7 +692,7 @@ export default function ParentProfile({ memberId }) {
   const tier = getTier(member);
   const days = Array.from({ length: 7 }, (_, i) => dateStr(i));
 
-  const allEvents = [...CALENDAR_EVENTS, ...userCalendarEvents];
+  const allEvents = userCalendarEvents;
 
   return (
     <div className="p-5">
@@ -768,6 +808,7 @@ export default function ParentProfile({ memberId }) {
             setMeal={setMeal}
             addUserCalendarEvent={addUserCalendarEvent}
             isLast={i === days.length - 1}
+            clock24h={clock24h}
           />
         ))}
       </div>

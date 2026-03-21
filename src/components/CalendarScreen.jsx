@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { apiFetch } from '../api/client';
-import { CALENDAR_EVENTS, getColorClass } from '../data/calendar';
+import { getColorClass } from '../data/calendar';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -32,6 +32,21 @@ function formatTime(timeStr, use24h) {
   return m === 0 ? `${h12} ${ampm}` : `${h12}:${m.toString().padStart(2,'0')} ${ampm}`;
 }
 const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function eventSortKey(event) {
+  const t = event.time;
+  if (!t || t === 'All day') return -1;
+  const hhmm = t.match(/^(\d{1,2}):(\d{2})/);
+  if (hhmm) return parseInt(hhmm[1]) * 60 + parseInt(hhmm[2]);
+  const ampm = t.match(/^(\d+)(?::(\d+))?\s*(AM|PM)/i);
+  if (ampm) {
+    let h = parseInt(ampm[1]); const m = parseInt(ampm[2] || '0');
+    if (ampm[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+    if (ampm[3].toUpperCase() === 'AM' && h === 12) h = 0;
+    return h * 60 + m;
+  }
+  return Infinity;
+}
 
 const DURATIONS = [
   { label: 'No end time', value: 0 },
@@ -274,8 +289,7 @@ export default function CalendarScreen() {
   const today = new Date(); today.setHours(0, 0, 0, 0);
 
   const userEventIds = new Set(userCalendarEvents.map(e => e.id));
-  const sourceEvents = hasConnections ? userCalendarEvents : [...CALENDAR_EVENTS, ...userCalendarEvents];
-  const allEvents = sourceEvents.filter(e => {
+  const allEvents = userCalendarEvents.filter(e => {
     const d = new Date(e.date + 'T00:00:00');
     return d >= today;
   });
@@ -285,6 +299,8 @@ export default function CalendarScreen() {
     if (!grouped[e.date]) grouped[e.date] = [];
     grouped[e.date].push(e);
   });
+  // Sort each day: all-day events first, then by start time ascending
+  Object.values(grouped).forEach(evts => evts.sort((a, b) => eventSortKey(a) - eventSortKey(b)));
   const dates = Object.keys(grouped).sort();
 
   return (
@@ -294,7 +310,7 @@ export default function CalendarScreen() {
         <div className="flex-1">
           <div className="text-xl font-extrabold tracking-tight">📅 Calendar</div>
           <div className="text-xs text-gray-400 mt-0.5">
-            {hasConnections ? 'Upcoming family events' : 'Sample data — connect a calendar'}
+            {hasConnections ? 'Upcoming family events' : 'Connect a calendar to sync events'}
           </div>
         </div>
         {!hasConnections && (
