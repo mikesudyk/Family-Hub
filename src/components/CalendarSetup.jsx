@@ -127,7 +127,7 @@ function ICloudConnectPanel({ onConnected }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function CalendarSetup({ onDone, inSettings = false }) {
-  const { calendarConnections, reloadConnections, pendingInviteUrl, setPendingInviteUrl } = useApp();
+  const { calendarConnections, reloadConnections, refresh, pendingInviteUrl, setPendingInviteUrl } = useApp();
   const [connecting, setConnecting]         = useState(false);
   const [showICloudForm, setShowICloudForm] = useState(false);
   const [copied, setCopied]                 = useState(false);
@@ -270,7 +270,7 @@ export default function CalendarSetup({ onDone, inSettings = false }) {
                 <ICloudConnectPanel
                   onConnected={() => {
                     setShowICloudForm(false);
-                    reloadConnections();
+                    refresh();
                   }}
                 />
               )}

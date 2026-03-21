@@ -139,6 +139,9 @@ router.post('/connect/icloud', verifyToken, async (req, res) => {
     return res.status(400).json({ error: 'appleId, appPassword, and calendarUrl required' });
   }
   try {
+    // Ensure calendarUrl ends with / for correct event URL construction
+    const normalizedUrl = calendarUrl.endsWith('/') ? calendarUrl : calendarUrl + '/';
+
     const r = await pool.query(
       `INSERT INTO calendar_connections
          (family_id, member_id, provider, access_token, refresh_token, calendar_id)
@@ -146,9 +149,18 @@ router.post('/connect/icloud', verifyToken, async (req, res) => {
        ON CONFLICT (member_id, provider)
        DO UPDATE SET access_token=$3, refresh_token=$4, calendar_id=$5
        RETURNING *`,
-      [req.familyId, req.memberId, appleId, appPassword, calendarUrl]
+      [req.familyId, req.memberId, appleId, appPassword, normalizedUrl]
     );
-    syncFromIcloud(r.rows[0]).catch(err => console.error('[icloud initial sync]', err.message));
+
+    // Await the initial sync so events are in DB before the client refreshes
+    try {
+      const { synced } = await syncFromIcloud(r.rows[0]);
+      console.log(`[icloud connect] initial sync: ${synced} events`);
+    } catch (err) {
+      console.error('[icloud initial sync]', err.message);
+      // Don't fail the connection just because sync had trouble
+    }
+
     res.json({ ok: true, calendarName });
   } catch (err) {
     console.error('[icloud connect]', err.message);
