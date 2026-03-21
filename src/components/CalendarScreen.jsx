@@ -33,6 +33,20 @@ function formatTime(timeStr, use24h) {
 }
 const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+// Format event time for display, combining start + end if available
+function formatEventTime(event, use24h) {
+  const t = event.time;
+  if (!t || t === 'All day') return 'All day';
+  // User-created events already embed "start–end" or just start in the time string
+  if (/AM|PM/i.test(t)) return formatTime(t, use24h);
+  // Synced events: t is "HH:MM", endTime may also be "HH:MM"
+  const start = formatTime(t, use24h);
+  if (event.endTime && event.endTime !== t) {
+    return `${start}–${formatTime(event.endTime, use24h)}`;
+  }
+  return start;
+}
+
 function eventSortKey(event) {
   const t = event.time;
   if (!t || t === 'All day') return -1;
@@ -251,7 +265,7 @@ function EventRow({ event, isUserEvent, onUpdate, onDelete, clock24h }) {
           <div className="text-sm font-semibold text-gray-900 truncate">{event.title}</div>
         </div>
         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${getColorClass(event.color)}`}>
-          {formatTime(event.time, clock24h)}
+          {formatEventTime(event, clock24h)}
         </span>
         {isUserEvent && <span className="text-gray-300 text-xs">✏️</span>}
         {!isUserEvent && hasInfo && <span className="text-gray-300 text-xs">{expanded ? '▲' : '▼'}</span>}

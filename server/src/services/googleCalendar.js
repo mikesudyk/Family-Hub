@@ -46,13 +46,15 @@ function googleEventToLocal(event, familyId, memberId) {
   if (!event.start) return null;
   const date = event.start.date || event.start.dateTime?.split('T')[0];
   if (!date) return null;
-  let time = null;
+  let time = null, endTime = null;
   if (event.start.dateTime) {
-    const d = new Date(event.start.dateTime);
-    time = d.toISOString().split('T')[1].slice(0, 5); // HH:MM
+    time = new Date(event.start.dateTime).toISOString().split('T')[1].slice(0, 5); // HH:MM
+  }
+  if (event.end?.dateTime) {
+    endTime = new Date(event.end.dateTime).toISOString().split('T')[1].slice(0, 5); // HH:MM
   }
   return { familyId, memberId, externalId: event.id, provider: 'google',
-    title: event.summary || '(No title)', date, time, color: 'blue', icon: '📅',
+    title: event.summary || '(No title)', date, time, endTime, color: 'blue', icon: '📅',
     notes: event.description || null,
     url: event.hangoutLink || event.htmlLink || null };
 }
@@ -114,12 +116,12 @@ async function syncFromGoogle(connection) {
       if (!local) continue;
       await pool.query(
         `INSERT INTO calendar_events
-           (family_id, member_id, date, title, time, color, icon, external_id, provider, notes, url)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+           (family_id, member_id, date, title, time, end_time, color, icon, external_id, provider, notes, url)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
          ON CONFLICT (family_id, external_id, provider) WHERE external_id IS NOT NULL
-         DO UPDATE SET title=$4, date=$3, time=$5, notes=$10, url=$11`,
+         DO UPDATE SET title=$4, date=$3, time=$5, end_time=$6, notes=$11, url=$12`,
         [local.familyId, local.memberId, local.date, local.title,
-         local.time, local.color, local.icon, local.externalId, local.provider,
+         local.time, local.endTime, local.color, local.icon, local.externalId, local.provider,
          local.notes, local.url]
       );
     }

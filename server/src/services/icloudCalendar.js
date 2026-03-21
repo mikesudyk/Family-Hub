@@ -86,9 +86,11 @@ function parseVEvents(icsStr) {
     if (!uid || !dtstart || status === 'CANCELLED') continue;
     const { date, time } = parseDT(dtstart);
     if (!date) continue;
+    const dtend = getICSProp(block, 'DTEND');
+    const { time: endTime } = parseDT(dtend);
     const notes = getICSProp(block, 'DESCRIPTION') || null;
     const url   = getICSProp(block, 'URL') || null;
-    events.push({ uid, summary, date, time, notes, url });
+    events.push({ uid, summary, date, time, endTime: endTime || null, notes, url });
   }
   return events;
 }
@@ -213,12 +215,12 @@ async function syncFromIcloud(connection) {
       try {
         await pool.query(
           `INSERT INTO calendar_events
-             (family_id, member_id, date, title, time, color, icon, external_id, provider, notes, url)
-           VALUES ($1,$2,$3,$4,$5,'gray','🍎',$6,'icloud',$7,$8)
+             (family_id, member_id, date, title, time, end_time, color, icon, external_id, provider, notes, url)
+           VALUES ($1,$2,$3,$4,$5,$6,'gray','🍎',$7,'icloud',$8,$9)
            ON CONFLICT (family_id, external_id, provider) WHERE external_id IS NOT NULL
-           DO UPDATE SET title=$4, date=$3, time=$5, notes=$7, url=$8`,
+           DO UPDATE SET title=$4, date=$3, time=$5, end_time=$6, notes=$8, url=$9`,
           [connection.family_id, connection.member_id,
-           event.date, event.summary, event.time, event.uid, event.notes, event.url]
+           event.date, event.summary, event.time, event.endTime, event.uid, event.notes, event.url]
         );
         synced++;
       } catch (err) {

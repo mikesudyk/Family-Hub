@@ -29,6 +29,17 @@ function formatTime(timeStr, use24h = false) {
   return m === 0 ? `${h12} ${ampm}` : `${h12}:${m.toString().padStart(2,'0')} ${ampm}`;
 }
 
+function formatEventTime(event, use24h) {
+  const t = event.time;
+  if (!t || t === 'All day') return 'All day';
+  if (/AM|PM/i.test(t)) return formatTime(t, use24h);
+  const start = formatTime(t, use24h);
+  if (event.endTime && event.endTime !== t) {
+    return `${start}–${formatTime(event.endTime, use24h)}`;
+  }
+  return start;
+}
+
 function eventSortKey(event) {
   const t = event.time;
   if (!t || t === 'All day') return -1;
@@ -229,7 +240,7 @@ function DaySection({ ds, allEvents, getMeal, setMeal, addUserCalendarEvent, isL
               <span className="text-base leading-none w-5 text-center flex-shrink-0">{event.icon}</span>
               <span className="text-sm text-gray-800 truncate flex-1">{event.title}</span>
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${getColorClass(event.color)}`}>
-                {formatTime(event.time, clock24h)}
+                {formatEventTime(event, clock24h)}
               </span>
             </div>
           ))}

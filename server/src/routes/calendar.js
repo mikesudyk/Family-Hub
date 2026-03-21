@@ -32,7 +32,7 @@ router.post('/', async (req, res) => {
       [familyId, date, title, time, color, icon, notes || null, url || null]
     );
     const e = r.rows[0];
-    const out = { id: e.id, date: e.date.toISOString().split('T')[0], title: e.title, time: e.time, color: e.color, icon: e.icon, notes: e.notes || null, url: e.url || null };
+    const out = { id: e.id, date: e.date.toISOString().split('T')[0], title: e.title, time: e.time, endTime: e.end_time || null, color: e.color, icon: e.icon, notes: e.notes || null, url: e.url || null };
     broadcast(familyId, 'calendarEvent:added', out);
     getConnections(familyId).then(conns => pushEventToAll(conns, out));
 
@@ -57,7 +57,7 @@ router.put('/:id', async (req, res) => {
       [title, date, time, notes ?? null, url ?? null, req.params.id, familyId]
     );
     const e = r.rows[0];
-    const out = { id: e.id, date: e.date.toISOString().split('T')[0], title: e.title, time: e.time, color: e.color, icon: e.icon, notes: e.notes || null, url: e.url || null, external_id: e.external_id, provider: e.provider };
+    const out = { id: e.id, date: e.date.toISOString().split('T')[0], title: e.title, time: e.time, endTime: e.end_time || null, color: e.color, icon: e.icon, notes: e.notes || null, url: e.url || null, external_id: e.external_id, provider: e.provider };
     broadcast(familyId, 'calendarEvent:updated', out);
     getConnections(familyId).then(conns => pushEventToAll(conns, out));
 
