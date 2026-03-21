@@ -56,10 +56,14 @@ router.get('/', async (req, res) => {
     for (const c of choresRes.rows) {
       const mid = c.member_id;
       if (!chores[mid]) chores[mid] = [];
+      const repeat = (() => {
+        if (!c.repeat) return null;
+        try { return JSON.parse(c.repeat); } catch { return c.repeat; }
+      })();
       chores[mid].push({
         id: c.id, name: c.name, icon: c.icon, time: c.time,
         done: c.done, doneAt: c.done_at, fixed: c.fixed,
-        repeat: c.repeat, listEventId: c.list_event_id,
+        repeat, listEventId: c.list_event_id,
       });
     }
 

@@ -4,6 +4,18 @@ const { broadcast }  = require('../socket');
 
 const router = express.Router();
 
+// Serialize repeat for DB storage (arrays must be JSON strings for VARCHAR column)
+function serializeRepeat(repeat) {
+  if (Array.isArray(repeat)) return JSON.stringify(repeat);
+  return repeat || null;
+}
+
+// Parse repeat back to JS value (JSON array string → array, else string as-is)
+function parseRepeat(r) {
+  if (!r) return null;
+  try { return JSON.parse(r); } catch { return r; }
+}
+
 // POST /api/chores  — add a chore to a member
 router.post('/', async (req, res) => {
   const { familyId } = req;
@@ -12,10 +24,10 @@ router.post('/', async (req, res) => {
   try {
     const r = await pool.query(
       'INSERT INTO chores (family_id, member_id, name, icon, time, repeat) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
-      [familyId, memberId, name, icon, time, repeat]
+      [familyId, memberId, name, icon, time, serializeRepeat(repeat)]
     );
     const c = r.rows[0];
-    const out = { id: c.id, memberId: c.member_id, name: c.name, icon: c.icon, time: c.time, done: false, repeat: c.repeat };
+    const out = { id: c.id, memberId: c.member_id, name: c.name, icon: c.icon, time: c.time, done: false, repeat: parseRepeat(c.repeat) };
     broadcast(familyId, 'chore:added', out);
     res.status(201).json(out);
   } catch (err) {
