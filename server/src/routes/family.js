@@ -179,6 +179,7 @@ router.get('/', async (req, res) => {
         title: e.title, time: e.time, endTime: e.end_time || null,
         color: e.color, icon: e.icon,
         notes: e.notes || null, url: e.url || null,
+        location: e.location || null,
         provider: e.provider || null,
       })),
     });

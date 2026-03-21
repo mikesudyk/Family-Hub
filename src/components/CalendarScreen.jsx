@@ -104,13 +104,14 @@ function AddEventForm({ onSave, onCancel }) {
   const [date, setDate] = useState(today);
   const [startTime, setStartTime] = useState('');
   const [duration, setDuration] = useState(0);
+  const [location, setLocation] = useState('');
   const [notes, setNotes] = useState('');
   const [url, setUrl] = useState('');
 
   function handleSave() {
     const t = title.trim();
     if (!t) return;
-    onSave({ title: t, date: date || today, time: formatTimeRange(startTime, duration), color: 'gray', icon: '📅', notes: notes.trim() || null, url: url.trim() || null });
+    onSave({ title: t, date: date || today, time: formatTimeRange(startTime, duration), color: 'gray', icon: '📅', location: location.trim() || null, notes: notes.trim() || null, url: url.trim() || null });
   }
 
   return (
@@ -146,6 +147,12 @@ function AddEventForm({ onSave, onCancel }) {
       >
         {DURATIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
       </select>
+      <input
+        value={location}
+        onChange={e => setLocation(e.target.value)}
+        placeholder="Location (optional)"
+        className="w-full bg-gray-50 rounded-lg px-3 py-2 text-sm border-none outline-none"
+      />
       <textarea
         value={notes}
         onChange={e => setNotes(e.target.value)}
@@ -181,16 +188,18 @@ function EventRow({ event, isUserEvent, onUpdate, onDelete, clock24h }) {
   const [date, setDate] = useState(event.date);
   const [startTime, setStartTime] = useState('');
   const [duration, setDuration] = useState(0);
+  const [location, setLocation] = useState(event.location || '');
   const [notes, setNotes] = useState(event.notes || '');
   const [url, setUrl] = useState(event.url || '');
 
-  const hasInfo = event.notes || event.url;
+  const hasInfo = event.notes || event.url || event.location;
 
   function handleSave() {
     onUpdate({
       title: title.trim() || event.title,
       date: date || event.date,
       time: formatTimeRange(startTime, duration) || event.time,
+      location: location.trim() || null,
       notes: notes.trim() || null,
       url: url.trim() || null,
     });
@@ -231,6 +240,12 @@ function EventRow({ event, isUserEvent, onUpdate, onDelete, clock24h }) {
         >
           {DURATIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
         </select>
+        <input
+          value={location}
+          onChange={e => setLocation(e.target.value)}
+          placeholder="Location (optional)"
+          className="w-full bg-gray-50 rounded-lg px-3 py-1.5 text-sm border-none outline-none"
+        />
         <textarea
           value={notes}
           onChange={e => setNotes(e.target.value)}
@@ -261,8 +276,9 @@ function EventRow({ event, isUserEvent, onUpdate, onDelete, clock24h }) {
         className={`flex items-center gap-2.5 px-1 py-0.5 ${isUserEvent || hasInfo ? 'cursor-pointer' : ''}`}
       >
         <span className="text-sm leading-none">{event.icon}</span>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold text-gray-900 truncate">{event.title}</div>
+        <div className="flex-1 min-w-0 flex items-center gap-1.5">
+          <span className="text-sm font-semibold text-gray-900 truncate">{event.title}</span>
+          {event.location && <span className="text-xs text-gray-400 truncate">{event.location}</span>}
         </div>
         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${getColorClass(event.color)}`}>
           {formatEventTime(event, clock24h)}
@@ -272,6 +288,7 @@ function EventRow({ event, isUserEvent, onUpdate, onDelete, clock24h }) {
       </div>
       {expanded && hasInfo && (
         <div className="px-1 pt-1 pb-0.5 space-y-1">
+          {event.location && <p className="text-xs text-gray-500">📍 {event.location}</p>}
           {event.notes && <p className="text-xs text-gray-500 whitespace-pre-wrap">{event.notes}</p>}
           {event.url && (
             <a href={event.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 underline break-all">

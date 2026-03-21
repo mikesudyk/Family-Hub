@@ -88,9 +88,10 @@ function parseVEvents(icsStr) {
     if (!date) continue;
     const dtend = getICSProp(block, 'DTEND');
     const { time: endTime } = parseDT(dtend);
-    const notes = getICSProp(block, 'DESCRIPTION') || null;
-    const url   = getICSProp(block, 'URL') || null;
-    events.push({ uid, summary, date, time, endTime: endTime || null, notes, url });
+    const notes    = getICSProp(block, 'DESCRIPTION') || null;
+    const url      = getICSProp(block, 'URL') || null;
+    const location = getICSProp(block, 'LOCATION') || null;
+    events.push({ uid, summary, date, time, endTime: endTime || null, notes, url, location });
   }
   return events;
 }
@@ -215,12 +216,12 @@ async function syncFromIcloud(connection) {
       try {
         await pool.query(
           `INSERT INTO calendar_events
-             (family_id, member_id, date, title, time, end_time, color, icon, external_id, provider, notes, url)
-           VALUES ($1,$2,$3,$4,$5,$6,'gray','🍎',$7,'icloud',$8,$9)
+             (family_id, member_id, date, title, time, end_time, color, icon, external_id, provider, notes, url, location)
+           VALUES ($1,$2,$3,$4,$5,$6,'gray','🍎',$7,'icloud',$8,$9,$10)
            ON CONFLICT (family_id, external_id, provider) WHERE external_id IS NOT NULL
-           DO UPDATE SET title=$4, date=$3, time=$5, end_time=$6, notes=$8, url=$9`,
+           DO UPDATE SET title=$4, date=$3, time=$5, end_time=$6, notes=$8, url=$9, location=$10`,
           [connection.family_id, connection.member_id,
-           event.date, event.summary, event.time, event.endTime, event.uid, event.notes, event.url]
+           event.date, event.summary, event.time, event.endTime, event.uid, event.notes, event.url, event.location]
         );
         synced++;
       } catch (err) {
