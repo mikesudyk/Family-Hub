@@ -58,7 +58,11 @@ router.get('/', async (req, res) => {
       if (!chores[mid]) chores[mid] = [];
       const repeat = (() => {
         if (!c.repeat) return null;
-        try { return JSON.parse(c.repeat); } catch { return c.repeat; }
+        try { const a = JSON.parse(c.repeat); return a; } catch {}
+        // PostgreSQL array formats: {"Mon","Wed"} or {Mon,Wed}
+        const s = c.repeat.trim();
+        const inner = s.startsWith('{') && s.endsWith('}') ? s.slice(1, -1) : s;
+        return inner.split(',').map(v => v.trim().replace(/^"|"$/g, '')).filter(Boolean);
       })();
       chores[mid].push({
         id: c.id, name: c.name, icon: c.icon, time: c.time,

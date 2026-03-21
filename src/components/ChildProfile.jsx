@@ -21,8 +21,10 @@ function parseRepeat(repeat) {
   if (!repeat || repeat === 'once' || repeat === 'daily') return repeat;
   if (Array.isArray(repeat)) return repeat;
   try { const a = JSON.parse(repeat); if (Array.isArray(a)) return a; } catch {}
-  // legacy comma-separated fallback
-  return repeat.split(',').map(s => s.trim()).filter(Boolean);
+  // PostgreSQL array formats: {"Mon","Wed"} or {Mon,Wed}
+  const s = repeat.trim();
+  const inner = s.startsWith('{') && s.endsWith('}') ? s.slice(1, -1) : s;
+  return inner.split(',').map(v => v.trim().replace(/^"|"$/g, '')).filter(Boolean);
 }
 
 function repeatLabel(repeat) {
