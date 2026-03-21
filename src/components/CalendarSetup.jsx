@@ -131,6 +131,17 @@ export default function CalendarSetup({ onDone, inSettings = false }) {
   const [connecting, setConnecting]         = useState(false);
   const [showICloudForm, setShowICloudForm] = useState(false);
   const [copied, setCopied]                 = useState(false);
+  const [disconnecting, setDisconnecting]   = useState(null); // provider name
+
+  async function disconnect(provider) {
+    setDisconnecting(provider);
+    try {
+      await apiFetch(`/api/calendar/connections/${provider}`, { method: 'DELETE' });
+      await refresh();
+    } finally {
+      setDisconnecting(null);
+    }
+  }
 
   function copyInviteUrl() {
     navigator.clipboard.writeText(pendingInviteUrl);
@@ -205,8 +216,17 @@ export default function CalendarSetup({ onDone, inSettings = false }) {
               </div>
             </div>
             {googleConnected ? (
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-green-600 bg-green-50 px-2.5 py-1 rounded-lg">
-                <span>✓</span> Connected
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-green-600 bg-green-50 px-2.5 py-1 rounded-lg">
+                  <span>✓</span> Connected
+                </div>
+                <button
+                  onClick={() => disconnect('google')}
+                  disabled={disconnecting === 'google'}
+                  className="text-xs text-red-400 bg-transparent border-none cursor-pointer disabled:opacity-40"
+                >
+                  {disconnecting === 'google' ? '…' : 'Remove'}
+                </button>
               </div>
             ) : (
               <button
@@ -253,8 +273,17 @@ export default function CalendarSetup({ onDone, inSettings = false }) {
                   </div>
                 </div>
                 {icloudConnected ? (
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-green-600 bg-green-50 px-2.5 py-1 rounded-lg">
-                    <span>✓</span> Connected
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-green-600 bg-green-50 px-2.5 py-1 rounded-lg">
+                      <span>✓</span> Connected
+                    </div>
+                    <button
+                      onClick={() => disconnect('icloud')}
+                      disabled={disconnecting === 'icloud'}
+                      className="text-xs text-red-400 bg-transparent border-none cursor-pointer disabled:opacity-40"
+                    >
+                      {disconnecting === 'icloud' ? '…' : 'Remove'}
+                    </button>
                   </div>
                 ) : (
                   <button
