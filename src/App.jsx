@@ -345,9 +345,8 @@ function AppContent() {
     }
   }, [setCalendarConnections]);
 
-  function handleJoined(data) {
-    localStorage.setItem('aeramea_token', data.token);
-    window.location.href = '/';
+  function handleJoined() {
+    window.location.href = '/'; // cookie already set by server
   }
 
   if (inviteToken) return <AuthShell><JoinScreen token={inviteToken} onJoined={handleJoined} /></AuthShell>;

@@ -154,9 +154,8 @@ export default function CalendarSetup({ onDone, inSettings = false }) {
 
   function connectGoogle() {
     setConnecting(true);
-    const token = localStorage.getItem('aeramea_token');
-    // Full-page redirect to OAuth flow — server reads token from state param
-    window.location.href = `${API}/api/calendar/connect/google?token=${token}`;
+    // Browser navigates directly — httpOnly cookie is sent automatically
+    window.location.href = `${API}/api/calendar/connect/google`;
   }
 
   return (

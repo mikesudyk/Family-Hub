@@ -14,23 +14,11 @@ const router = express.Router();
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 
 // ── GET /api/calendar/connect/google ─────────────────────────────────────────
-// Initiates Google OAuth — called by frontend via window.location redirect
-// Token comes as ?token= query param (browser redirect can't set headers)
-router.get('/connect/google', (req, res) => {
-  const token = req.query.token;
-  if (!token) return res.status(401).json({ error: 'No token provided' });
-
-  let payload;
-  try {
-    payload = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
-  } catch {
-    return res.status(401).json({ error: 'Invalid or expired token' });
-  }
-
+// Initiates Google OAuth — browser navigates here directly; cookie is sent automatically
+router.get('/connect/google', verifyToken, (req, res) => {
   const state = Buffer.from(JSON.stringify({
-    token,
-    memberId: payload.memberId,
-    familyId: payload.familyId,
+    memberId: req.memberId,
+    familyId: req.familyId,
   })).toString('base64');
 
   res.redirect(getAuthUrl(state));

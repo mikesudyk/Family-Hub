@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { FAMILY } from '../data/family';
 import { INITIAL_CHORES } from '../data/chores';
-import { apiFetch, setToken, clearToken } from '../api/client';
+import { apiFetch } from '../api/client';
 import { connectSocket, disconnectSocket } from '../api/socket';
 
 const AppContext = createContext(null);
@@ -257,32 +257,25 @@ export function AppProvider({ children }) {
     ));
   }
 
-  async function loadFamilyData(overrideToken) {
+  async function loadFamilyData() {
     try {
       const [data, connections] = await Promise.all([
-        apiFetch('/api/family', {}, overrideToken),
-        apiFetch('/api/calendar/connections', {}, overrideToken).catch(() => []),
+        apiFetch('/api/family'),
+        apiFetch('/api/calendar/connections').catch(() => []),
       ]);
       applyFamilyData(data);
       setCalendarConnections(connections);
       setAuthStatus('authenticated');
-      const token = overrideToken || localStorage.getItem('aeramea_token');
-      const socket = connectSocket(token);
+      const socket = connectSocket();
       setupSocketListeners(socket);
     } catch (err) {
-      clearToken();
       setAuthStatus('guest');
     }
   }
 
-  // On mount: check for existing token
+  // On mount: try to load family data — server returns 401 if cookie is missing/expired
   useEffect(() => {
-    const token = localStorage.getItem('aeramea_token');
-    if (!token) {
-      setAuthStatus('guest');
-      return;
-    }
-    loadFamilyData(token);
+    loadFamilyData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -293,9 +286,8 @@ export function AppProvider({ children }) {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
-    setToken(data.token);
     setCurrentMemberId(data.memberId);
-    await loadFamilyData(data.token);
+    await loadFamilyData();
   }
 
   function startOnboarding(data) {
@@ -316,16 +308,15 @@ export function AppProvider({ children }) {
         partnerEmail: data.partnerEmail || null,
       }),
     });
-    setToken(result.token);
     setCurrentMemberId(result.memberId);
     setIsOnboarding(false);
     if (result.inviteUrl) setPendingInviteUrl(result.inviteUrl);
     setJustSignedUp(true);
-    await loadFamilyData(result.token);
+    await loadFamilyData();
   }
 
   function signOut() {
-    clearToken();
+    apiFetch('/api/auth/signout', { method: 'POST' }).catch(() => {});
     disconnectSocket();
     socketRef.current = null;
     setAuthStatus('guest');

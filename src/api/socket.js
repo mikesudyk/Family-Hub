@@ -4,10 +4,10 @@ const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 let socket = null;
 
-export function connectSocket(token) {
+export function connectSocket() {
   if (socket) socket.disconnect();
   socket = io(BASE, {
-    auth: { token },
+    withCredentials: true, // sends httpOnly cookie with the WebSocket handshake
     transports: ['websocket'],
   });
   return socket;

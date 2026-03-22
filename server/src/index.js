@@ -1,9 +1,11 @@
 require('dotenv').config();
-const express   = require('express');
-const http      = require('http');
-const { Server } = require('socket.io');
-const cors      = require('cors');
-const jwt       = require('jsonwebtoken');
+const express      = require('express');
+const http         = require('http');
+const { Server }   = require('socket.io');
+const cors         = require('cors');
+const jwt          = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
+const rateLimit    = require('express-rate-limit');
 
 const { runMigrations } = require('./db');
 const { setIo }         = require('./socket');
@@ -37,12 +39,37 @@ const corsOptions = {
 };
 
 const io = new Server(server, {
-  cors: { origin: allowedOrigins, methods: ['GET', 'POST'] },
+  cors: { origin: allowedOrigins, methods: ['GET', 'POST'], credentials: true },
 });
 setIo(io);
 
 app.use(cors(corsOptions));
+app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
+
+// ── Rate limiting ─────────────────────────────────────────────────────────────
+// Strict limit on auth endpoints to block brute force
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please wait 15 minutes and try again.' },
+});
+
+// General limit on all API routes
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please slow down.' },
+});
+
+app.use('/api/', apiLimiter);
+app.use('/api/auth/signin',  authLimiter);
+app.use('/api/auth/signup',  authLimiter);
+app.use('/api/auth/join',    authLimiter);
 
 // Health check
 app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date() }));
@@ -60,9 +87,11 @@ app.use('/api/calendar', calendarSyncRoutes); // /connect, /callback, /webhook �
 app.use('/api/calendar', verifyToken, calendarRoutes);
 app.use('/api/settings', verifyToken, settingsRoutes);
 
-// Socket.io — verify JWT, join family room
+// Socket.io — verify JWT from httpOnly cookie
 io.use((socket, next) => {
-  const token = socket.handshake.auth?.token;
+  const cookieStr = socket.handshake.headers.cookie || '';
+  const match = cookieStr.match(/(?:^|;\s*)aeramea_token=([^;]+)/);
+  const token = match ? decodeURIComponent(match[1]) : null;
   if (!token) return next(new Error('No token'));
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
@@ -106,7 +135,6 @@ async function start() {
   try {
     await runMigrations();
     server.listen(PORT, () => console.log(`Aeramea API running on port ${PORT}`));
-    // Sync all Google calendars every 15 minutes
     setInterval(runPeriodicSync, 15 * 60 * 1000);
   } catch (err) {
     console.error('Failed to start:', err);

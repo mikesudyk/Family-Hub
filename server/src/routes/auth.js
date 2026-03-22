@@ -3,6 +3,7 @@ const bcrypt    = require('bcryptjs');
 const jwt       = require('jsonwebtoken');
 const crypto    = require('crypto');
 const { pool }  = require('../db');
+const { verifyToken } = require('../middleware/auth');
 
 async function sendInviteEmail(to, inviteUrl) {
   const apiKey = process.env.RESEND_API_KEY;
@@ -35,6 +36,14 @@ const router = express.Router();
 
 const DEFAULT_STORES = ["Sam's", 'Costco', 'Meijer', 'Aldi', "Trader Joe's", 'Wal-Mart'];
 
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax', // 'lax' allows the OAuth redirect callback from Google
+  maxAge: 90 * 24 * 60 * 60 * 1000, // 90 days in ms
+  path: '/',
+};
+
 function makeToken(userId, familyId, memberId) {
   return jwt.sign(
     { userId, familyId, memberId },
@@ -43,8 +52,11 @@ function makeToken(userId, familyId, memberId) {
   );
 }
 
+function setAuthCookie(res, token) {
+  res.cookie('aeramea_token', token, COOKIE_OPTIONS);
+}
+
 // ── POST /api/auth/signup ─────────────────────────────────────────────────────
-// Creates account + family + seeds default data
 router.post('/signup', async (req, res) => {
   const { name, email, password, familyName, parentAvatar = '👨', kids = [], partnerEmail } = req.body;
   if (!name || !email || !password || !familyName) {
@@ -58,21 +70,18 @@ router.post('/signup', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Check email not taken
     const existing = await client.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
     if (existing.rows.length) {
       await client.query('ROLLBACK');
       return res.status(409).json({ error: 'An account with that email already exists' });
     }
 
-    // Create family
     const familyRes = await client.query(
       'INSERT INTO families (hub_name) VALUES ($1) RETURNING id',
       [familyName + ' Hub']
     );
     const familyId = familyRes.rows[0].id;
 
-    // Hash password + create user
     const hash = await bcrypt.hash(password, 12);
     const userRes = await client.query(
       'INSERT INTO users (family_id, email, password_hash, name, avatar) VALUES ($1,$2,$3,$4,$5) RETURNING id',
@@ -80,20 +89,17 @@ router.post('/signup', async (req, res) => {
     );
     const userId = userRes.rows[0].id;
 
-    // Create parent family_member record
     const memberRes = await client.query(
       'INSERT INTO family_members (family_id, user_id, name, avatar, role, tier, sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
       [familyId, userId, name, parentAvatar, 'admin', 'admin', 0]
     );
     const memberId = memberRes.rows[0].id;
 
-    // Create family_settings
     await client.query(
       'INSERT INTO family_settings (family_id, countdown_mode) VALUES ($1, $2)',
       [familyId, 'birthday']
     );
 
-    // Seed default stores
     for (let i = 0; i < DEFAULT_STORES.length; i++) {
       await client.query(
         'INSERT INTO stores (family_id, name, sort_order) VALUES ($1,$2,$3)',
@@ -101,13 +107,11 @@ router.post('/signup', async (req, res) => {
       );
     }
 
-    // Seed default grocery shopping list
     await client.query(
       'INSERT INTO shopping_lists (family_id, name) VALUES ($1, $2)',
       [familyId, 'Grocery']
     );
 
-    // Add kids if provided
     for (let i = 0; i < kids.length; i++) {
       const kid = kids[i];
       await client.query(
@@ -118,7 +122,6 @@ router.post('/signup', async (req, res) => {
 
     await client.query('COMMIT');
 
-    // Send partner invite if provided
     let inviteUrl = null;
     if (partnerEmail) {
       try {
@@ -128,16 +131,15 @@ router.post('/signup', async (req, res) => {
           [familyId, partnerEmail.toLowerCase(), inviteToken]
         );
         inviteUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/invite/${inviteToken}`;
-
-        await sendInviteEmail(partnerEmail, inviteUrl);
+        sendInviteEmail(partnerEmail, inviteUrl).catch(err => console.error('[signup invite]', err.message));
       } catch (inviteErr) {
         console.error('[signup invite]', inviteErr.message);
-        // Non-fatal — account was created successfully
       }
     }
 
     const token = makeToken(userId, familyId, memberId);
-    res.status(201).json({ token, userId, familyId, memberId, inviteUrl: process.env.RESEND_API_KEY ? null : inviteUrl });
+    setAuthCookie(res, token);
+    res.status(201).json({ userId, familyId, memberId, inviteUrl: process.env.RESEND_API_KEY ? null : inviteUrl });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('[signup]', err);
@@ -164,141 +166,21 @@ router.post('/signin', async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Invalid email or password' });
 
     const token = makeToken(user.id, user.family_id, user.member_id);
-    res.json({ token, userId: user.id, familyId: user.family_id, memberId: user.member_id });
+    setAuthCookie(res, token);
+    res.json({ userId: user.id, familyId: user.family_id, memberId: user.member_id });
   } catch (err) {
     console.error('[signin]', err);
     res.status(500).json({ error: 'Sign in failed' });
   }
 });
 
-// ── GET /api/auth/invites ─────────────────────────────────────────────────────
-// Returns pending (unused, unexpired) invites for this family
-router.get('/invites', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: 'Not authenticated' });
-  let familyId;
-  try {
-    const payload = jwt.verify(authHeader.slice(7), process.env.JWT_SECRET);
-    familyId = payload.familyId;
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-  try {
-    const r = await pool.query(
-      `SELECT id, email, created_at, expires_at FROM invites
-       WHERE family_id=$1 AND used=false AND expires_at > NOW()
-       ORDER BY created_at DESC`,
-      [familyId]
-    );
-    res.json(r.rows);
-  } catch (err) {
-    console.error('[invites]', err);
-    res.status(500).json({ error: 'Failed to fetch invites' });
-  }
-});
-
-// ── POST /api/auth/invite/resend/:id ─────────────────────────────────────────
-// Refreshes the token + expiry and resends the invite email
-router.post('/invite/resend/:id', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: 'Not authenticated' });
-  let familyId;
-  try {
-    const payload = jwt.verify(authHeader.slice(7), process.env.JWT_SECRET);
-    familyId = payload.familyId;
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-  try {
-    const newToken = crypto.randomBytes(32).toString('hex');
-    const r = await pool.query(
-      `UPDATE invites SET token=$1, created_at=NOW(), expires_at=NOW() + INTERVAL '7 days'
-       WHERE id=$2 AND family_id=$3 AND used=false
-       RETURNING email, token`,
-      [newToken, req.params.id, familyId]
-    );
-    if (r.rows.length === 0) return res.status(404).json({ error: 'Invite not found' });
-    const { email, token } = r.rows[0];
-    const inviteUrl = `${process.env.CLIENT_URL}/invite/${token}`;
-    let emailSent = false;
-    try {
-      await sendInviteEmail(email, inviteUrl);
-      emailSent = true;
-    } catch (emailErr) {
-      console.error('[resend invite] email failed:', emailErr.message);
-    }
-    res.json({ ok: true, emailSent, inviteUrl: !emailSent ? inviteUrl : null });
-  } catch (err) {
-    console.error('[resend invite]', err);
-    res.status(500).json({ error: 'Failed to resend invite' });
-  }
-});
-
-// ── DELETE /api/auth/invite/:id ───────────────────────────────────────────────
-router.delete('/invite/:id', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: 'Not authenticated' });
-  let familyId;
-  try {
-    const payload = jwt.verify(authHeader.slice(7), process.env.JWT_SECRET);
-    familyId = payload.familyId;
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-  try {
-    await pool.query(
-      'DELETE FROM invites WHERE id=$1 AND family_id=$2 AND used=false',
-      [req.params.id, familyId]
-    );
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('[delete invite]', err);
-    res.status(500).json({ error: 'Failed to delete invite' });
-  }
-});
-
-// ── POST /api/auth/invite ─────────────────────────────────────────────────────
-// Authenticated — sends a partner invite email
-router.post('/invite', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: 'Not authenticated' });
-  let familyId;
-  try {
-    const payload = jwt.verify(authHeader.slice(7), process.env.JWT_SECRET);
-    familyId = payload.familyId;
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ error: 'email required' });
-
-  try {
-    const token = crypto.randomBytes(32).toString('hex');
-    await pool.query(
-      'INSERT INTO invites (family_id, email, token) VALUES ($1,$2,$3)',
-      [familyId, email.toLowerCase(), token]
-    );
-
-    const inviteUrl = `${process.env.CLIENT_URL}/invite/${token}`;
-
-    let emailSent = false;
-    try {
-      await sendInviteEmail(email, inviteUrl);
-      emailSent = true;
-    } catch (emailErr) {
-      console.error('[invite] email failed:', emailErr.message);
-    }
-
-    res.json({ ok: true, emailSent, inviteUrl: !emailSent ? inviteUrl : null });
-  } catch (err) {
-    console.error('[invite]', err);
-    res.status(500).json({ error: 'Failed to create invite' });
-  }
+// ── POST /api/auth/signout ────────────────────────────────────────────────────
+router.post('/signout', (req, res) => {
+  res.clearCookie('aeramea_token', { path: '/' });
+  res.json({ ok: true });
 });
 
 // ── POST /api/auth/join/:token ────────────────────────────────────────────────
-// Join an existing family via invite token
 router.post('/join/:token', async (req, res) => {
   const { token } = req.params;
   const { name, password, avatar = '👩' } = req.body;
@@ -318,7 +200,6 @@ router.post('/join/:token', async (req, res) => {
       return res.status(400).json({ error: 'Invite link is invalid or has expired' });
     }
 
-    // Check email not already taken
     const existing = await client.query('SELECT id FROM users WHERE email = $1', [invite.email]);
     if (existing.rows.length) {
       await client.query('ROLLBACK');
@@ -342,7 +223,8 @@ router.post('/join/:token', async (req, res) => {
     await client.query('COMMIT');
 
     const jwtToken = makeToken(userId, invite.family_id, memberId);
-    res.status(201).json({ token: jwtToken, userId, familyId: invite.family_id, memberId });
+    setAuthCookie(res, jwtToken);
+    res.status(201).json({ userId, familyId: invite.family_id, memberId });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('[join]', err);
@@ -352,25 +234,100 @@ router.post('/join/:token', async (req, res) => {
   }
 });
 
-// ── PUT /api/auth/account ─────────────────────────────────────────────────────
-// Change email and/or password for the logged-in user
-router.put('/account', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: 'Not authenticated' });
-  let userId;
+// ── GET /api/auth/invites ─────────────────────────────────────────────────────
+router.get('/invites', verifyToken, async (req, res) => {
   try {
-    const payload = jwt.verify(authHeader.slice(7), process.env.JWT_SECRET);
-    userId = payload.userId;
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' });
+    const r = await pool.query(
+      `SELECT id, email, created_at, expires_at FROM invites
+       WHERE family_id=$1 AND used=false AND expires_at > NOW()
+       ORDER BY created_at DESC`,
+      [req.familyId]
+    );
+    res.json(r.rows);
+  } catch (err) {
+    console.error('[invites]', err);
+    res.status(500).json({ error: 'Failed to fetch invites' });
   }
+});
 
+// ── POST /api/auth/invite/resend/:id ─────────────────────────────────────────
+router.post('/invite/resend/:id', verifyToken, async (req, res) => {
+  try {
+    const newToken = crypto.randomBytes(32).toString('hex');
+    const r = await pool.query(
+      `UPDATE invites SET token=$1, created_at=NOW(), expires_at=NOW() + INTERVAL '7 days'
+       WHERE id=$2 AND family_id=$3 AND used=false
+       RETURNING email, token`,
+      [newToken, req.params.id, req.familyId]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Invite not found' });
+    const { email, token } = r.rows[0];
+    const inviteUrl = `${process.env.CLIENT_URL}/invite/${token}`;
+    let emailSent = false;
+    try {
+      await sendInviteEmail(email, inviteUrl);
+      emailSent = true;
+    } catch (emailErr) {
+      console.error('[resend invite] email failed:', emailErr.message);
+    }
+    res.json({ ok: true, emailSent, inviteUrl: !emailSent ? inviteUrl : null });
+  } catch (err) {
+    console.error('[resend invite]', err);
+    res.status(500).json({ error: 'Failed to resend invite' });
+  }
+});
+
+// ── DELETE /api/auth/invite/:id ───────────────────────────────────────────────
+router.delete('/invite/:id', verifyToken, async (req, res) => {
+  try {
+    await pool.query(
+      'DELETE FROM invites WHERE id=$1 AND family_id=$2 AND used=false',
+      [req.params.id, req.familyId]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[delete invite]', err);
+    res.status(500).json({ error: 'Failed to delete invite' });
+  }
+});
+
+// ── POST /api/auth/invite ─────────────────────────────────────────────────────
+router.post('/invite', verifyToken, async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'email required' });
+
+  try {
+    const token = crypto.randomBytes(32).toString('hex');
+    await pool.query(
+      'INSERT INTO invites (family_id, email, token) VALUES ($1,$2,$3)',
+      [req.familyId, email.toLowerCase(), token]
+    );
+
+    const inviteUrl = `${process.env.CLIENT_URL}/invite/${token}`;
+
+    let emailSent = false;
+    try {
+      await sendInviteEmail(email, inviteUrl);
+      emailSent = true;
+    } catch (emailErr) {
+      console.error('[invite] email failed:', emailErr.message);
+    }
+
+    res.json({ ok: true, emailSent, inviteUrl: !emailSent ? inviteUrl : null });
+  } catch (err) {
+    console.error('[invite]', err);
+    res.status(500).json({ error: 'Failed to create invite' });
+  }
+});
+
+// ── PUT /api/auth/account ─────────────────────────────────────────────────────
+router.put('/account', verifyToken, async (req, res) => {
   const { currentPassword, newEmail, newPassword } = req.body;
   if (!currentPassword) return res.status(400).json({ error: 'currentPassword required' });
   if (!newEmail && !newPassword) return res.status(400).json({ error: 'Nothing to update' });
 
   try {
-    const userRes = await pool.query('SELECT * FROM users WHERE id=$1', [userId]);
+    const userRes = await pool.query('SELECT * FROM users WHERE id=$1', [req.userId]);
     const user = userRes.rows[0];
     if (!user) return res.status(404).json({ error: 'User not found' });
 
@@ -378,14 +335,14 @@ router.put('/account', async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
 
     if (newEmail) {
-      const existing = await pool.query('SELECT id FROM users WHERE email=$1 AND id!=$2', [newEmail.toLowerCase(), userId]);
+      const existing = await pool.query('SELECT id FROM users WHERE email=$1 AND id!=$2', [newEmail.toLowerCase(), req.userId]);
       if (existing.rows.length > 0) return res.status(409).json({ error: 'Email already in use' });
-      await pool.query('UPDATE users SET email=$1 WHERE id=$2', [newEmail.toLowerCase(), userId]);
+      await pool.query('UPDATE users SET email=$1 WHERE id=$2', [newEmail.toLowerCase(), req.userId]);
     }
 
     if (newPassword) {
       const hash = await bcrypt.hash(newPassword, 12);
-      await pool.query('UPDATE users SET password_hash=$1 WHERE id=$2', [hash, userId]);
+      await pool.query('UPDATE users SET password_hash=$1 WHERE id=$2', [hash, req.userId]);
     }
 
     res.json({ ok: true });
