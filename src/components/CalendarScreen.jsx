@@ -192,8 +192,6 @@ function EventRow({ event, isUserEvent, onUpdate, onDelete, clock24h }) {
   const [notes, setNotes] = useState(event.notes || '');
   const [url, setUrl] = useState(event.url || '');
 
-  const hasInfo = event.notes || event.url || event.location;
-
   function handleSave() {
     onUpdate({
       title: title.trim() || event.title,
@@ -262,7 +260,7 @@ function EventRow({ event, isUserEvent, onUpdate, onDelete, clock24h }) {
         />
         <div className="flex items-center gap-2">
           <button onClick={handleSave} className="text-xs font-semibold bg-gray-900 text-white px-3 py-1.5 rounded-lg border-none cursor-pointer">Save</button>
-          <button onClick={() => setEditing(false)} className="text-xs text-gray-400 bg-transparent border-none cursor-pointer">Cancel</button>
+          <button onClick={() => { setEditing(false); }} className="text-xs text-gray-400 bg-transparent border-none cursor-pointer">Cancel</button>
           <button onClick={onDelete} className="text-xs text-red-400 bg-transparent border-none cursor-pointer ml-auto">Delete</button>
         </div>
       </div>
@@ -272,8 +270,8 @@ function EventRow({ event, isUserEvent, onUpdate, onDelete, clock24h }) {
   return (
     <div>
       <div
-        onClick={() => isUserEvent ? setEditing(true) : hasInfo && setExpanded(v => !v)}
-        className={`flex items-center gap-2.5 px-1 py-0.5 ${isUserEvent || hasInfo ? 'cursor-pointer' : ''}`}
+        onClick={() => setExpanded(v => !v)}
+        className="flex items-center gap-2.5 px-1 py-0.5 cursor-pointer"
       >
         <span className="text-sm leading-none">{event.icon}</span>
         <div className="flex-1 min-w-0 flex flex-col">
@@ -283,17 +281,31 @@ function EventRow({ event, isUserEvent, onUpdate, onDelete, clock24h }) {
         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${getColorClass(event.color)}`}>
           {formatEventTime(event, clock24h)}
         </span>
-        {isUserEvent && <span className="text-gray-300 text-xs">✏️</span>}
-        {!isUserEvent && hasInfo && <span className="text-gray-300 text-xs">{expanded ? '▲' : '▼'}</span>}
+        <span className="text-gray-300 text-xs">{expanded ? '▲' : '▼'}</span>
       </div>
-      {expanded && hasInfo && (
-        <div className="px-1 pt-1 pb-0.5 space-y-1">
+      {expanded && (
+        <div className="px-1 pt-1.5 pb-1 space-y-1">
           {event.location && <p className="text-xs text-gray-500">📍 {event.location}</p>}
           {event.notes && <p className="text-xs text-gray-500 whitespace-pre-wrap">{event.notes}</p>}
           {event.url && (
             <a href={event.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 underline break-all">
               {event.url}
             </a>
+          )}
+          {isUserEvent && (
+            <button
+              onClick={() => {
+                setTitle(event.title);
+                setDate(event.date);
+                setLocation(event.location || '');
+                setNotes(event.notes || '');
+                setUrl(event.url || '');
+                setEditing(true);
+              }}
+              className="text-xs font-semibold text-blue-500 bg-transparent border-none cursor-pointer pt-0.5"
+            >
+              Edit
+            </button>
           )}
         </div>
       )}
