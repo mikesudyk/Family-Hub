@@ -75,9 +75,10 @@ export default function AdminDashboard() {
       <MenuRow onClick={() => navigate('admin-profiles')}>
         <span>👨‍👩‍👧‍👦 Manage Profiles</span><span>›</span>
       </MenuRow>
-      <MenuRow onClick={() => navigate('admin-chore-builder')}>
-        <span>📋 Chore Builder</span><span>›</span>
-      </MenuRow>
+      <div className="flex items-center justify-between px-4 py-3 mb-1 rounded-xl bg-gray-50 opacity-50">
+        <span className="text-sm font-semibold text-gray-900">📋 Chore Builder</span>
+        <span className="text-xs font-semibold text-gray-400 bg-gray-200 px-2 py-0.5 rounded-full">Coming soon</span>
+      </div>
       <MenuRow onClick={() => navigate('admin-assignments')}>
         <span>📌 Chore Assignments</span><span>›</span>
       </MenuRow>
