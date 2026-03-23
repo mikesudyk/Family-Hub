@@ -129,11 +129,17 @@ function WeekView({ chores }) {
 }
 
 export default function ChildProfile({ memberId }) {
-  const { navigate, getMember, getTier, getChores, getGoals, toggleGoal,
+  const { navigate, getMember, getTier, getChores, getGoals, addGoal, toggleGoal, updateGoal, removeGoal,
           getPersonalTodos, addPersonalTodo, removePersonalTodo, togglePersonalTodo } = useApp();
   const [weekView, setWeekView] = useState(false);
   const [addingTodo, setAddingTodo] = useState(false);
   const [todoText, setTodoText] = useState('');
+  const [editingGoalId, setEditingGoalId] = useState(null);
+  const [goalEditText, setGoalEditText] = useState('');
+  const [goalEditDue, setGoalEditDue] = useState('');
+  const [addingGoal, setAddingGoal] = useState(false);
+  const [newGoalText, setNewGoalText] = useState('');
+  const [newGoalDue, setNewGoalDue] = useState('');
   const member = getMember(memberId);
   if (!member) return null;
 
@@ -189,15 +195,14 @@ export default function ChildProfile({ memberId }) {
       {weekView ? (
         <WeekView chores={chores} />
       ) : (
-        chores.length === 0 ? (
-          <div className="bg-white rounded-xl p-4 text-center text-gray-400 text-sm">No chores assigned.</div>
+        todayChores.length === 0 ? (
+          <div className="bg-white rounded-xl p-4 text-center text-gray-400 text-sm">No chores today.</div>
         ) : (
           <div>
-            {chores.map(c => (
+            {todayChores.map(c => (
               <ChoreRow
                 key={c.id}
                 chore={c}
-                dimmed={!appliesToday(c)}
                 onClick={() => navigate('chore-detail', { choreId: c.id, memberId: member.id })}
               />
             ))}
@@ -207,19 +212,55 @@ export default function ChildProfile({ memberId }) {
 
       {/* School Goals */}
       <SectionLabel>School Goals</SectionLabel>
-      {getGoals(member.id).length === 0 ? (
-        <div className="bg-white rounded-xl p-4 text-center text-gray-400 text-sm">
-          No school goals yet.
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {getGoals(member.id).map(goal => (
-            <button
-              key={goal.id}
-              onClick={() => toggleGoal(member.id, goal.id)}
-              className="w-full flex items-center gap-3 bg-white rounded-xl px-3 py-3 border-none cursor-pointer text-left"
-            >
-              <span className="text-lg w-7 text-center">{goal.done ? '✅' : '🎯'}</span>
+      <div className="space-y-2">
+        {getGoals(member.id).length === 0 && !addingGoal && (
+          <div className="bg-white rounded-xl p-4 text-center text-gray-400 text-sm">No school goals yet.</div>
+        )}
+        {getGoals(member.id).map(goal => (
+          editingGoalId === goal.id ? (
+            <div key={goal.id} className="bg-white rounded-xl px-3 py-3 space-y-2">
+              <input
+                autoFocus
+                value={goalEditText}
+                onChange={e => setGoalEditText(e.target.value)}
+                className="w-full bg-gray-50 rounded-lg px-3 py-2 text-sm border border-gray-200 outline-none focus:border-blue-400"
+                placeholder="Goal text"
+              />
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-400 flex-shrink-0">Due date</label>
+                <input
+                  type="date"
+                  value={goalEditDue}
+                  onChange={e => setGoalEditDue(e.target.value)}
+                  className="flex-1 bg-gray-50 rounded-lg px-3 py-1.5 text-sm border border-gray-200 outline-none focus:border-blue-400"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    if (goalEditText.trim()) updateGoal(member.id, goal.id, goalEditText.trim(), goalEditDue || null);
+                    setEditingGoalId(null);
+                  }}
+                  className="text-sm font-semibold bg-gray-900 text-white px-3 py-1.5 rounded-lg border-none cursor-pointer"
+                >Save</button>
+                <button
+                  onClick={() => setEditingGoalId(null)}
+                  className="text-sm text-gray-400 bg-transparent border-none cursor-pointer"
+                >Cancel</button>
+                <button
+                  onClick={() => { removeGoal(member.id, goal.id); setEditingGoalId(null); }}
+                  className="ml-auto text-sm text-red-400 bg-transparent border-none cursor-pointer"
+                >Delete</button>
+              </div>
+            </div>
+          ) : (
+            <div key={goal.id} className="flex items-center gap-3 bg-white rounded-xl px-3 py-3">
+              <button
+                onClick={() => toggleGoal(member.id, goal.id)}
+                className="text-lg w-7 text-center bg-transparent border-none cursor-pointer p-0 flex-shrink-0"
+              >
+                {goal.done ? '✅' : '🎯'}
+              </button>
               <div className="flex-1 min-w-0">
                 <div className={`text-sm font-medium ${goal.done ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                   {goal.text}
@@ -230,10 +271,59 @@ export default function ChildProfile({ memberId }) {
                   </div>
                 )}
               </div>
-            </button>
-          ))}
-        </div>
-      )}
+              <button
+                onClick={() => { setEditingGoalId(goal.id); setGoalEditText(goal.text); setGoalEditDue(goal.dueDate?.split('T')[0] || ''); }}
+                className="text-gray-300 hover:text-gray-500 bg-transparent border-none cursor-pointer text-sm px-1"
+              >✏️</button>
+            </div>
+          )
+        ))}
+        {addingGoal ? (
+          <div className="bg-white rounded-xl px-3 py-3 space-y-2">
+            <input
+              autoFocus
+              value={newGoalText}
+              onChange={e => setNewGoalText(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && newGoalText.trim()) {
+                  addGoal(member.id, newGoalText.trim(), '🎯', newGoalDue || null);
+                  setNewGoalText(''); setNewGoalDue(''); setAddingGoal(false);
+                }
+                if (e.key === 'Escape') { setAddingGoal(false); setNewGoalText(''); setNewGoalDue(''); }
+              }}
+              className="w-full bg-gray-50 rounded-lg px-3 py-2 text-sm border border-gray-200 outline-none focus:border-blue-400"
+              placeholder="Goal text"
+            />
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-400 flex-shrink-0">Due date</label>
+              <input
+                type="date"
+                value={newGoalDue}
+                onChange={e => setNewGoalDue(e.target.value)}
+                className="flex-1 bg-gray-50 rounded-lg px-3 py-1.5 text-sm border border-gray-200 outline-none focus:border-blue-400"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  if (newGoalText.trim()) addGoal(member.id, newGoalText.trim(), '🎯', newGoalDue || null);
+                  setNewGoalText(''); setNewGoalDue(''); setAddingGoal(false);
+                }}
+                className="text-sm font-semibold bg-gray-900 text-white px-3 py-1.5 rounded-lg border-none cursor-pointer"
+              >Add</button>
+              <button
+                onClick={() => { setAddingGoal(false); setNewGoalText(''); setNewGoalDue(''); }}
+                className="text-sm text-gray-400 bg-transparent border-none cursor-pointer"
+              >Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setAddingGoal(true)}
+            className="w-full text-left text-sm text-blue-500 font-semibold py-2 px-1 bg-transparent border-none cursor-pointer"
+          >+ Add goal</button>
+        )}
+      </div>
 
       {/* Personal To-Dos */}
       <SectionLabel>My To-Dos</SectionLabel>

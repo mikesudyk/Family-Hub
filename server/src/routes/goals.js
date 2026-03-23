@@ -39,6 +39,23 @@ router.put('/:id/toggle', async (req, res) => {
   }
 });
 
+router.put('/:id', async (req, res) => {
+  const { familyId } = req;
+  const { text, dueDate } = req.body;
+  try {
+    const r = await pool.query(
+      'UPDATE goals SET text = $1, due_date = $2 WHERE id = $3 AND family_id = $4 RETURNING *',
+      [text, dueDate || null, req.params.id, familyId]
+    );
+    const g = r.rows[0];
+    const out = { id: g.id, memberId: g.member_id, text: g.text, dueDate: g.due_date, done: g.done };
+    broadcast(familyId, 'goal:updated', { memberId: g.member_id, goal: out });
+    res.json(out);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update goal' });
+  }
+});
+
 router.delete('/:id', async (req, res) => {
   const { familyId } = req;
   try {

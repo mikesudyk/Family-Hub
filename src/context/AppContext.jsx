@@ -568,6 +568,17 @@ export function AppProvider({ children }) {
     apiFetch(`/api/goals/${goalId}/toggle`, { method: 'PUT' }).catch(console.error);
   }
 
+  function updateGoal(kidId, goalId, text, dueDate) {
+    setGoals(prev => ({
+      ...prev,
+      [kidId]: (prev[kidId] || []).map(g => g.id === goalId ? { ...g, text, dueDate: dueDate || null } : g),
+    }));
+    apiFetch(`/api/goals/${goalId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ text, dueDate: dueDate || null }),
+    }).catch(console.error);
+  }
+
   // ── Family goals ─────────────────────────────────────────────────────────────
 
   function toggleFamilyGoal(date, goalId) {
@@ -893,7 +904,7 @@ export function AppProvider({ children }) {
       choreLists, addChoreList, deleteChoreList, updateChoreListName,
       addChoreToList, removeChoreFromList, getChoreList,
       activeListEvent, assignListEvent, dismissListEvent, getListEventProgress,
-      goals, getGoals, addGoal, removeGoal, toggleGoal,
+      goals, getGoals, addGoal, removeGoal, toggleGoal, updateGoal,
       personalTodos, getPersonalTodos, addPersonalTodo, removePersonalTodo, togglePersonalTodo,
       parentPriorities, getParentPriorities, addParentPriority, removeParentPriority, toggleParentPriority,
       mealsOnDeck, getMealsOnDeck, getMealsOnDeckHistory, addMealOnDeck, archiveMealOnDeck, removeMealOnDeck,
