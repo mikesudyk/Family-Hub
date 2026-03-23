@@ -91,14 +91,16 @@ function SignUpForm({ onBack, onSuccess }) {
   const [email, setEmail]         = useState('');
   const [password, setPassword]   = useState('');
   const [confirm, setConfirm]     = useState('');
+  const [betaCode, setBetaCode]   = useState('');
   const [error, setError]         = useState('');
 
   function handleSubmit() {
     if (!firstName.trim() || !email.trim()) { setError('Please fill in all fields.'); return; }
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
     if (password !== confirm) { setError("Passwords don't match."); return; }
+    if (betaCode.trim().toLowerCase() !== 'mikevip') { setError('Invalid beta access code.'); return; }
     setError('');
-    onSuccess({ name: firstName.trim(), email: email.trim(), password });
+    onSuccess({ name: firstName.trim(), email: email.trim(), password, betaCode: betaCode.trim() });
   }
 
   return (
@@ -139,8 +141,15 @@ function SignUpForm({ onBack, onSuccess }) {
           type="password"
           value={confirm}
           onChange={e => setConfirm(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleSubmit()}
           placeholder="Confirm password"
+          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-gray-400"
+        />
+        <input
+          type="text"
+          value={betaCode}
+          onChange={e => setBetaCode(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+          placeholder="Beta access code"
           className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-gray-400"
         />
         {error && <div className="text-xs text-red-500 px-1">{error}</div>}

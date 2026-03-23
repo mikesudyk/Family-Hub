@@ -310,6 +310,7 @@ export function AppProvider({ children }) {
         name: onboardingData.name,
         email: onboardingData.email,
         password: onboardingData.password,
+        betaCode: onboardingData.betaCode,
         familyName: data.familyName,
         parentAvatar: data.parentAvatar || '👨',
         kids: data.kids || [],

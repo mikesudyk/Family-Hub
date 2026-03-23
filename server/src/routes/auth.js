@@ -61,9 +61,13 @@ function setAuthCookie(res, token) {
 
 // ── POST /api/auth/signup ─────────────────────────────────────────────────────
 router.post('/signup', async (req, res) => {
-  const { name, email, password, familyName, parentAvatar = '👨', kids = [], partnerEmail } = req.body;
+  const { name, email, password, familyName, parentAvatar = '👨', kids = [], partnerEmail, betaCode } = req.body;
   if (!name || !email || !password || !familyName) {
     return res.status(400).json({ error: 'name, email, password, and familyName are required' });
+  }
+  const BETA_CODE = process.env.BETA_CODE || 'mikevip';
+  if (!betaCode || betaCode.trim().toLowerCase() !== BETA_CODE.toLowerCase()) {
+    return res.status(403).json({ error: 'Invalid beta access code' });
   }
   if (password.length < 8) {
     return res.status(400).json({ error: 'Password must be at least 8 characters' });
