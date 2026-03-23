@@ -1,9 +1,13 @@
-const express = require('express');
-const router  = express.Router();
+const express    = require('express');
+const { pool }   = require('../db');
+const router     = express.Router();
 
 router.post('/', async (req, res) => {
   const { message } = req.body;
   if (!message || !message.trim()) return res.status(400).json({ error: 'message required' });
+
+  const userRes = await pool.query('SELECT email FROM users WHERE id = $1', [req.userId]);
+  const email = userRes.rows[0]?.email || 'unknown';
 
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
@@ -22,7 +26,7 @@ router.post('/', async (req, res) => {
         from: process.env.EMAIL_FROM || 'Aeramea <noreply@aeramea.com>',
         to: 'mike@aeramea.com',
         subject: 'Aeramea App Feedback',
-        html: `<p><strong>Feedback from family hub user (family ${req.familyId}):</strong></p>
+        html: `<p><strong>Feedback from ${email}:</strong></p>
                <p style="white-space:pre-wrap">${message.trim().replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`,
       }),
     });
