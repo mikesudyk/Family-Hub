@@ -179,7 +179,10 @@ router.post('/signin', async (req, res) => {
 
 // ── POST /api/auth/signout ────────────────────────────────────────────────────
 router.post('/signout', (req, res) => {
-  res.clearCookie('aeramea_token', { path: '/' });
+  res.clearCookie('aeramea_token', {
+    path: '/',
+    ...(process.env.NODE_ENV === 'production' ? { domain: '.aeramea.com' } : {}),
+  });
   res.json({ ok: true });
 });
 
