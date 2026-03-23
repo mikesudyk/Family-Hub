@@ -146,8 +146,32 @@ function formatTimeRange(startTime, durationMins) {
   return `${fmt(startMins)}–${fmt(startMins + durationMins)}`;
 }
 
+function formatDisplayTime(timeStr, use24h) {
+  if (!timeStr || timeStr === 'All day') return 'All day';
+  // Already has AM/PM (user-created events)
+  if (/AM|PM/i.test(timeStr)) {
+    if (!use24h) return timeStr;
+    return timeStr.split('–').map(part => {
+      const m = part.trim().match(/^(\d+)(?::(\d+))?\s*(AM|PM)$/i);
+      if (!m) return part.trim();
+      let h = parseInt(m[1]); const min = parseInt(m[2] || '0');
+      if (m[3].toUpperCase() === 'AM' && h === 12) h = 0;
+      if (m[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+      return `${h.toString().padStart(2,'0')}:${min.toString().padStart(2,'0')}`;
+    }).join('–');
+  }
+  // Raw HH:MM from sync
+  const match = timeStr.match(/^(\d{2}):(\d{2})$/);
+  if (!match) return timeStr;
+  if (use24h) return timeStr;
+  const h = parseInt(match[1]); const m = parseInt(match[2]);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return m === 0 ? `${h12} ${ampm}` : `${h12}:${m.toString().padStart(2,'0')} ${ampm}`;
+}
+
 function WeekCalendar() {
-  const { userCalendarEvents, addUserCalendarEvent, calendarConnections, navigate } = useApp();
+  const { userCalendarEvents, addUserCalendarEvent, calendarConnections, navigate, clock24h } = useApp();
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
@@ -266,9 +290,8 @@ function WeekCalendar() {
                 <div className="space-y-1">
                   {grouped[date].map(event => (
                     <div key={event.id} className="flex items-center gap-2.5">
-                      <span className="text-base leading-none w-5 text-center">{event.icon}</span>
                       <span className="text-sm text-gray-800 truncate flex-1">{event.title}</span>
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${getColorClass(event.color)}`}>{event.time}</span>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${getColorClass(event.color)}`}>{formatDisplayTime(event.time, clock24h)}</span>
                     </div>
                   ))}
                 </div>
