@@ -113,7 +113,10 @@ export function AppProvider({ children }) {
     socket.on('chore:deleted', ({ memberId, id }) => setChores(prev => ({
       ...prev, [memberId]: (prev[memberId] || []).filter(c => c.id !== id),
     })));
-    socket.on('choreList:added', list => setChoreLists(prev => [...prev, list]));
+    socket.on('choreList:added', list => setChoreLists(prev => {
+      if (prev.some(l => l.id === list.id)) return prev;
+      return [...prev, list];
+    }));
     socket.on('choreList:updated', list => setChoreLists(prev =>
       prev.map(l => l.id === list.id ? { ...l, ...list } : l)
     ));
@@ -225,13 +228,18 @@ export function AppProvider({ children }) {
     })));
 
     // Shopping
-    socket.on('shoppingList:added', list => setShoppingLists(prev => [...prev, list]));
+    socket.on('shoppingList:added', list => setShoppingLists(prev => {
+      if (prev.some(l => l.id === list.id)) return prev;
+      return [...prev, list];
+    }));
     socket.on('shoppingList:renamed', ({ id, name }) => setShoppingLists(prev =>
       prev.map(l => l.id === id ? { ...l, name } : l)
     ));
     socket.on('shoppingList:deleted', ({ id }) => setShoppingLists(prev => prev.filter(l => l.id !== id)));
     socket.on('shoppingItem:added', item => setShoppingLists(prev =>
-      prev.map(l => l.id === item.listId ? { ...l, items: [...l.items, item] } : l)
+      prev.map(l => l.id === item.listId
+        ? l.items.some(i => i.id === item.id) ? l : { ...l, items: [...l.items, item] }
+        : l)
     ));
     socket.on('shoppingItem:toggled', ({ id, listId, checked }) => setShoppingLists(prev =>
       prev.map(l => l.id === listId
