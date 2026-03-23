@@ -27,6 +27,7 @@ import ShoppingLists from './components/ShoppingLists';
 import ShoppingListDetail from './components/ShoppingListDetail';
 import { BottomNav } from './components/ui';
 import DailyOverview from './components/DailyOverview';
+import FeedbackScreen from './components/FeedbackScreen';
 
 function Router() {
   const { screen, screenData, getMember, getTier } = useApp();
@@ -97,6 +98,9 @@ function Router() {
 
     case 'print-view':
       return <PrintView memberId={screenData} />;
+
+    case 'feedback':
+      return <FeedbackScreen />;
 
     default:
       return <FamilyHub />;

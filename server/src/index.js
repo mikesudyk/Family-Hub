@@ -22,6 +22,7 @@ const shoppingRoutes     = require('./routes/shopping');
 const calendarRoutes     = require('./routes/calendar');
 const calendarSyncRoutes = require('./routes/calendarSync');
 const settingsRoutes     = require('./routes/settings');
+const feedbackRoutes     = require('./routes/feedback');
 
 const app    = express();
 const server = http.createServer(app);
@@ -86,6 +87,7 @@ app.use('/api/shopping', verifyToken, shoppingRoutes);
 app.use('/api/calendar', calendarSyncRoutes); // /connect, /callback, /webhook — some public, some use verifyToken internally
 app.use('/api/calendar', verifyToken, calendarRoutes);
 app.use('/api/settings', verifyToken, settingsRoutes);
+app.use('/api/feedback', verifyToken, feedbackRoutes);
 
 // Socket.io — verify JWT from httpOnly cookie
 io.use((socket, next) => {

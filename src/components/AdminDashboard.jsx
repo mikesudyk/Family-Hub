@@ -103,6 +103,9 @@ export default function AdminDashboard() {
       </MenuRow>
 
       <SectionLabel>Account</SectionLabel>
+      <MenuRow onClick={() => navigate('feedback')}>
+        <span>💬 Send Feedback</span><span>›</span>
+      </MenuRow>
       <MenuRow onClick={signOut}>
         <span className="text-red-500">🚪 Sign Out</span><span>›</span>
       </MenuRow>
