@@ -238,7 +238,7 @@ function DaySection({ ds, allEvents, getMeal, setMeal, addUserCalendarEvent, isL
           {dayEvents.map(event => (
             <div key={event.id} className="flex items-center gap-2.5">
               <span className="text-base leading-none w-5 text-center flex-shrink-0">{event.icon}</span>
-              <div className="flex-1 min-w-0 flex items-center gap-1.5">
+              <div className="flex-1 min-w-0 flex flex-col">
                 <span className="text-sm text-gray-800 truncate">{event.title}</span>
                 {event.location && <span className="text-xs text-gray-400 truncate">{event.location}</span>}
               </div>

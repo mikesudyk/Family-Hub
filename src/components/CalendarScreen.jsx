@@ -276,7 +276,7 @@ function EventRow({ event, isUserEvent, onUpdate, onDelete, clock24h }) {
         className={`flex items-center gap-2.5 px-1 py-0.5 ${isUserEvent || hasInfo ? 'cursor-pointer' : ''}`}
       >
         <span className="text-sm leading-none">{event.icon}</span>
-        <div className="flex-1 min-w-0 flex items-center gap-1.5">
+        <div className="flex-1 min-w-0 flex flex-col">
           <span className="text-sm font-semibold text-gray-900 truncate">{event.title}</span>
           {event.location && <span className="text-xs text-gray-400 truncate">{event.location}</span>}
         </div>
