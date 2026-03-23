@@ -57,6 +57,21 @@ function getICSProp(block, propName) {
   return m ? m[1].trim() : null;
 }
 
+// Unescape RFC 5545 text escape sequences
+function unescapeICS(value) {
+  if (!value) return value;
+  return value
+    .replace(/\\n/gi, '\n') // literal \n → newline
+    .replace(/\\,/g, ',')   // \, → ,
+    .replace(/\\;/g, ';')   // \; → ;
+    .replace(/\\\\/g, '\\'); // \\ → \
+}
+
+// For location: collapse newlines into ", " for clean single-line display
+function unescapeLocation(value) {
+  return unescapeICS(value)?.replace(/\n+/g, ', ').trim() || null;
+}
+
 // Parse DTSTART/DTEND string → { date: 'YYYY-MM-DD', time: 'HH:MM' | null }
 function parseDT(value) {
   if (!value) return { date: null, time: null };
@@ -88,9 +103,9 @@ function parseVEvents(icsStr) {
     if (!date) continue;
     const dtend = getICSProp(block, 'DTEND');
     const { time: endTime } = parseDT(dtend);
-    const notes    = getICSProp(block, 'DESCRIPTION') || null;
+    const notes    = unescapeICS(getICSProp(block, 'DESCRIPTION')) || null;
     const url      = getICSProp(block, 'URL') || null;
-    const location = getICSProp(block, 'LOCATION') || null;
+    const location = unescapeLocation(getICSProp(block, 'LOCATION'));
     events.push({ uid, summary, date, time, endTime: endTime || null, notes, url, location });
   }
   return events;
