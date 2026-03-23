@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BackButton } from './ui';
+
 function formatDueDate(dateStr) {
   if (!dateStr) return null;
   const d = new Date(dateStr + 'T00:00:00');
@@ -38,26 +39,32 @@ function AddGoalRow({ kidId, onAdd }) {
         autoFocus
         value={text}
         onChange={e => setText(e.target.value)}
-        onKeyDown={e => e.key === 'Enter' && handleAdd()}
+        onKeyDown={e => {
+          if (e.key === 'Enter') handleAdd();
+          if (e.key === 'Escape') { setOpen(false); setText(''); setDueDate(''); }
+        }}
         placeholder="e.g. Read 20 minutes each night"
-        className="w-full bg-gray-50 rounded-lg px-3 py-2 text-sm border-none outline-none"
+        className="w-full bg-gray-50 rounded-lg px-3 py-2 text-sm border border-gray-200 outline-none focus:border-blue-400"
       />
-      <input
-        type="date"
-        value={dueDate}
-        onChange={e => setDueDate(e.target.value)}
-        className="w-full bg-gray-50 rounded-lg px-3 py-2 text-sm border-none outline-none"
-      />
+      <div className="flex items-center gap-2">
+        <label className="text-xs text-gray-400 flex-shrink-0">Due date</label>
+        <input
+          type="date"
+          value={dueDate}
+          onChange={e => setDueDate(e.target.value)}
+          className="flex-1 bg-gray-50 rounded-lg px-3 py-1.5 text-sm border border-gray-200 outline-none focus:border-blue-400"
+        />
+      </div>
       <div className="flex gap-2">
         <button
           onClick={handleAdd}
-          className="text-xs font-semibold bg-gray-900 text-white px-4 py-1.5 rounded-lg border-none cursor-pointer"
+          className="text-sm font-semibold bg-gray-900 text-white px-3 py-1.5 rounded-lg border-none cursor-pointer"
         >
           Add
         </button>
         <button
           onClick={() => { setOpen(false); setText(''); setDueDate(''); }}
-          className="text-xs text-gray-400 bg-transparent border-none cursor-pointer"
+          className="text-sm text-gray-400 bg-transparent border-none cursor-pointer"
         >
           Cancel
         </button>
@@ -66,8 +73,82 @@ function AddGoalRow({ kidId, onAdd }) {
   );
 }
 
+function GoalRow({ kidId, goal, onUpdate, onRemove }) {
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState('');
+  const [editDue, setEditDue] = useState('');
+
+  function startEdit() {
+    setEditText(goal.text);
+    setEditDue(goal.dueDate?.split('T')[0] || '');
+    setEditing(true);
+  }
+
+  function handleSave() {
+    if (editText.trim()) onUpdate(kidId, goal.id, editText.trim(), editDue || null);
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <div className="bg-gray-50 rounded-xl px-3 py-3 space-y-2">
+        <input
+          autoFocus
+          value={editText}
+          onChange={e => setEditText(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') handleSave();
+            if (e.key === 'Escape') setEditing(false);
+          }}
+          className="w-full bg-white rounded-lg px-3 py-2 text-sm border border-gray-200 outline-none focus:border-blue-400"
+          placeholder="Goal text"
+        />
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-gray-400 flex-shrink-0">Due date</label>
+          <input
+            type="date"
+            value={editDue}
+            onChange={e => setEditDue(e.target.value)}
+            className="flex-1 bg-white rounded-lg px-3 py-1.5 text-sm border border-gray-200 outline-none focus:border-blue-400"
+          />
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handleSave}
+            className="text-sm font-semibold bg-gray-900 text-white px-3 py-1.5 rounded-lg border-none cursor-pointer"
+          >Save</button>
+          <button
+            onClick={() => setEditing(false)}
+            className="text-sm text-gray-400 bg-transparent border-none cursor-pointer"
+          >Cancel</button>
+          <button
+            onClick={() => { onRemove(kidId, goal.id); setEditing(false); }}
+            className="ml-auto text-sm text-red-400 bg-transparent border-none cursor-pointer"
+          >Delete</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5">
+      <span className="text-base">🎯</span>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium text-gray-800">{goal.text}</div>
+        {goal.dueDate && (
+          <div className="text-xs text-gray-400">Due {formatDueDate(goal.dueDate)}</div>
+        )}
+      </div>
+      <button
+        onClick={startEdit}
+        className="text-gray-300 hover:text-gray-500 bg-transparent border-none cursor-pointer text-sm px-1"
+      >✏️</button>
+    </div>
+  );
+}
+
 export default function AdminSchoolGoals() {
-  const { getGoals, addGoal, removeGoal, getAllMembers } = useApp();
+  const { getGoals, addGoal, updateGoal, removeGoal, getAllMembers } = useApp();
   const kids = getAllMembers().filter(m => m.role === 'child' && m.tier !== 'infant');
 
   return (
@@ -93,19 +174,13 @@ export default function AdminSchoolGoals() {
                   <div className="text-xs text-gray-400 py-1">No goals yet.</div>
                 )}
                 {kidGoals.map(goal => (
-                  <div key={goal.id} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5">
-                    <span className="text-base">🎯</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-800">{goal.text}</div>
-                      {goal.dueDate && (
-                        <div className="text-xs text-gray-400">Due {formatDueDate(goal.dueDate)}</div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => removeGoal(k.id, goal.id)}
-                      className="text-gray-300 hover:text-red-400 bg-transparent border-none cursor-pointer text-xl leading-none px-1"
-                    >×</button>
-                  </div>
+                  <GoalRow
+                    key={goal.id}
+                    kidId={k.id}
+                    goal={goal}
+                    onUpdate={updateGoal}
+                    onRemove={removeGoal}
+                  />
                 ))}
               </div>
 
