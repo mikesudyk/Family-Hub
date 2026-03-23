@@ -87,7 +87,7 @@ router.get('/', async (req, res) => {
     for (const g of goalsRes.rows) {
       const mid = g.member_id;
       if (!goals[mid]) goals[mid] = [];
-      goals[mid].push({ id: g.id, text: g.text, dueDate: g.due_date, done: g.done });
+      goals[mid].push({ id: g.id, text: g.text, dueDate: g.due_date ? g.due_date.toISOString().split('T')[0] : null, done: g.done });
     }
 
     // Family goals map: { 'YYYY-MM-DD': [...] }

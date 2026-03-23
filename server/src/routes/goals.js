@@ -16,7 +16,7 @@ router.post('/', async (req, res) => {
       [familyId, memberId, text, dueDate || null]
     );
     const g = r.rows[0];
-    const out = { id: g.id, memberId: g.member_id, text: g.text, dueDate: g.due_date, done: false };
+    const out = { id: g.id, memberId: g.member_id, text: g.text, dueDate: g.due_date ? g.due_date.toISOString().split('T')[0] : null, done: false };
     broadcast(familyId, 'goal:added', out);
     res.status(201).json(out);
   } catch (err) {
@@ -48,7 +48,7 @@ router.put('/:id', async (req, res) => {
       [text, dueDate || null, req.params.id, familyId]
     );
     const g = r.rows[0];
-    const out = { id: g.id, memberId: g.member_id, text: g.text, dueDate: g.due_date, done: g.done };
+    const out = { id: g.id, memberId: g.member_id, text: g.text, dueDate: g.due_date ? g.due_date.toISOString().split('T')[0] : null, done: g.done };
     broadcast(familyId, 'goal:updated', { memberId: g.member_id, goal: out });
     res.json(out);
   } catch (err) {
