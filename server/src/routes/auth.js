@@ -39,9 +39,10 @@ const DEFAULT_STORES = ["Sam's", 'Costco', 'Meijer', 'Aldi', "Trader Joe's", 'Wa
 const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  // 'none' + Secure in production allows cross-site fetch (Vercel → Railway)
-  // 'lax' in dev works fine for localhost same-site requests
-  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  sameSite: 'lax',
+  // Shared root domain so cookie is sent from aeramea.com → api.aeramea.com
+  // Omit domain in dev so localhost works without issue
+  ...(process.env.NODE_ENV === 'production' ? { domain: '.aeramea.com' } : {}),
   maxAge: 90 * 24 * 60 * 60 * 1000, // 90 days in ms
   path: '/',
 };
