@@ -273,7 +273,6 @@ function EventRow({ event, isUserEvent, onUpdate, onDelete, clock24h }) {
         onClick={() => setExpanded(v => !v)}
         className="flex items-center gap-2.5 px-1 py-0.5 cursor-pointer"
       >
-        <span className="text-sm leading-none">{event.icon}</span>
         <div className="flex-1 min-w-0 flex flex-col">
           <span className="text-sm font-semibold text-gray-900 truncate">{event.title}</span>
           {event.location && <span className="text-xs text-gray-400 truncate">{event.location}</span>}
@@ -352,9 +351,17 @@ export default function CalendarScreen() {
       <div className="px-5 pt-5 pb-3 border-b border-gray-100 flex items-center gap-2">
         <div className="flex-1">
           <div className="text-xl font-extrabold tracking-tight">📅 Calendar</div>
-          <div className="text-xs text-gray-400 mt-0.5">
-            {hasConnections ? 'Upcoming family events' : 'Connect a calendar to sync events'}
-          </div>
+          {hasConnections ? (
+            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+              {calendarConnections.filter(c => c.connected).map(c => (
+                <span key={c.provider} className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                  {c.provider === 'google' ? '📅 Google' : c.provider === 'icloud' ? '🍎 iCloud' : c.provider}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div className="text-xs text-gray-400 mt-0.5">Connect a calendar to sync events</div>
+          )}
         </div>
         {!hasConnections && (
           <button
