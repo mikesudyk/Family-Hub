@@ -63,7 +63,10 @@ router.get('/', async (req, res) => {
       if (!chores[mid]) chores[mid] = [];
       const repeat = (() => {
         if (!c.repeat) return null;
-        try { const a = JSON.parse(c.repeat); return a; } catch {}
+        // Plain string values — return as-is
+        if (c.repeat === 'daily' || c.repeat === 'biweekly' || c.repeat === 'once') return c.repeat;
+        // JSON-encoded array: ["Mon","Wed"]
+        try { const a = JSON.parse(c.repeat); if (Array.isArray(a)) return a; } catch {}
         // PostgreSQL array formats: {"Mon","Wed"} or {Mon,Wed}
         const s = c.repeat.trim();
         const inner = s.startsWith('{') && s.endsWith('}') ? s.slice(1, -1) : s;
