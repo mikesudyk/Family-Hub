@@ -104,6 +104,9 @@ export default function AdminDashboard() {
       </MenuRow>
 
       <SectionLabel>Account</SectionLabel>
+      <MenuRow onClick={() => navigate('design-system')}>
+        <span>🎨 Design System</span><span>›</span>
+      </MenuRow>
       <MenuRow onClick={() => navigate('feedback')}>
         <span>💬 Send Feedback</span><span>›</span>
       </MenuRow>

@@ -28,6 +28,7 @@ import ShoppingListDetail from './components/ShoppingListDetail';
 import { BottomNav } from './components/ui';
 import DailyOverview from './components/DailyOverview';
 import FeedbackScreen from './components/FeedbackScreen';
+import DesignSystem from './components/DesignSystem';
 
 function Router() {
   const { screen, screenData, getMember, getTier } = useApp();
@@ -101,6 +102,9 @@ function Router() {
 
     case 'feedback':
       return <FeedbackScreen />;
+
+    case 'design-system':
+      return <DesignSystem />;
 
     default:
       return <FamilyHub />;

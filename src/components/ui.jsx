@@ -199,6 +199,92 @@ export function AvatarRing({ member, size = 72 }) {
   );
 }
 
+// ── Design System Primitives ─────────────────────────────────────────────────
+
+const BUTTON_VARIANTS = {
+  primary:   'bg-brand text-white hover:bg-brand-dark active:bg-brand-dark',
+  secondary: 'bg-gray-100 text-gray-700 hover:bg-warm-dark active:bg-warm-dark',
+  danger:    'bg-transparent text-red-500 hover:bg-red-50 active:bg-red-50',
+  ghost:     'bg-transparent text-brand hover:bg-brand-light active:bg-brand-light',
+};
+
+const BUTTON_SIZES = {
+  sm: 'text-xs px-3 py-1.5',
+  md: 'text-sm px-4 py-2.5',
+  lg: 'text-base px-5 py-3',
+};
+
+export function Button({ onClick, children, variant = 'primary', size = 'md', fullWidth = false, disabled = false, className = '' }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`
+        font-semibold rounded-lg border-none cursor-pointer transition-colors
+        ${BUTTON_VARIANTS[variant]}
+        ${BUTTON_SIZES[size]}
+        ${fullWidth ? 'w-full' : ''}
+        ${disabled ? 'opacity-40 cursor-not-allowed' : ''}
+        ${className}
+      `}
+    >
+      {children}
+    </button>
+  );
+}
+
+export function Card({ children, className = '', padding = true }) {
+  return (
+    <div className={`bg-white rounded-lg ${padding ? 'px-4 py-3' : ''} ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+export function Input({ value, onChange, placeholder, type = 'text', className = '', ...props }) {
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      className={`w-full bg-warm rounded-lg px-3 py-2.5 text-sm border-none outline-none placeholder-gray-400 focus:ring-2 focus:ring-brand/20 ${className}`}
+      {...props}
+    />
+  );
+}
+
+export function TextArea({ value, onChange, placeholder, rows = 3, className = '', ...props }) {
+  return (
+    <textarea
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      rows={rows}
+      className={`w-full bg-warm rounded-lg px-3 py-2.5 text-sm border-none outline-none resize-none placeholder-gray-400 focus:ring-2 focus:ring-brand/20 ${className}`}
+      {...props}
+    />
+  );
+}
+
+const BADGE_VARIANTS = {
+  blue:   'bg-brand-light text-brand',
+  green:  'bg-green-100 text-green-700',
+  red:    'bg-red-100 text-red-600',
+  gray:   'bg-gray-100 text-gray-500',
+  orange: 'bg-orange-100 text-orange-600',
+};
+
+export function Badge({ children, variant = 'blue', className = '' }) {
+  return (
+    <span className={`inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full ${BADGE_VARIANTS[variant]} ${className}`}>
+      {children}
+    </span>
+  );
+}
+
+// ── Legacy buttons (kept for backwards compatibility) ─────────────────────────
+
 export function GreenButton({ onClick, children, className = '' }) {
   return (
     <button
