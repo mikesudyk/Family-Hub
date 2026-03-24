@@ -246,6 +246,7 @@ function EditChoreRow({ chore, onSave, onCancel }) {
 export default function AdminAssignments() {
   const { chores, getChores, addChore, removeChore, updateChore, getAllMembers } = useApp();
   const [editingId, setEditingId] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
   const kids = getAllMembers().filter(m => m.role === 'child' && m.tier !== 'infant');
 
   const allChores = Object.values(chores).flat();
@@ -261,61 +262,69 @@ export default function AdminAssignments() {
         <div className="text-xl font-extrabold tracking-tight">Assignments</div>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {kids.map(k => {
           const kidChores = getChores(k.id);
+          const expanded = expandedId === k.id;
           return (
-            <div key={k.id} className="bg-white rounded-2xl p-4">
-              <div className="flex items-center gap-2 mb-3">
+            <div key={k.id} className="bg-white rounded-2xl overflow-hidden">
+              <button
+                onClick={() => setExpandedId(expanded ? null : k.id)}
+                className="w-full flex items-center gap-3 px-4 py-3.5 bg-transparent border-none cursor-pointer text-left"
+              >
                 <span className="text-2xl">{k.avatar}</span>
-                <span className="font-bold text-base">{k.name}</span>
-                <span className="ml-auto text-xs text-gray-400">{kidChores.length} chore{kidChores.length !== 1 ? 's' : ''}</span>
-              </div>
+                <span className="font-bold text-base flex-1">{k.name}</span>
+                <span className="text-xs text-gray-400">{kidChores.length} chore{kidChores.length !== 1 ? 's' : ''}</span>
+                <span className="text-gray-300 text-xs ml-1">{expanded ? '▲' : '▼'}</span>
+              </button>
 
-              <div className="space-y-1">
-                {kidChores.length === 0 && (
-                  <div className="text-xs text-gray-400 py-1">No chores assigned yet.</div>
-                )}
-                {kidChores.map(chore => (
-                  editingId === chore.id ? (
-                    <EditChoreRow
-                      key={chore.id}
-                      chore={chore}
-                      onSave={changes => { updateChore(k.id, chore.id, changes); setEditingId(null); }}
-                      onCancel={() => setEditingId(null)}
-                    />
-                  ) : (
-                    <div key={chore.id} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
-                      <span className="text-base">{chore.icon}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-gray-800">{chore.name}</div>
-                        {repeatLabel(chore.repeat) && (
-                          <div className="text-xs text-gray-400">{repeatLabel(chore.repeat)}</div>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => setEditingId(chore.id)}
-                        className="text-xs text-brand font-semibold bg-transparent border-none cursor-pointer px-1"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => removeChore(k.id, chore.id)}
-                        className="text-gray-300 hover:text-red-400 bg-transparent border-none cursor-pointer text-xl leading-none px-1"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  )
-                ))}
-              </div>
-
-              <AddChoreRow
-                kidId={k.id}
-                allChoreNames={allChoreNames}
-                allChores={allChores}
-                onAdd={addChore}
-              />
+              {expanded && (
+                <div className="px-4 pb-4">
+                  <div className="space-y-1">
+                    {kidChores.length === 0 && (
+                      <div className="text-xs text-gray-400 py-1">No chores assigned yet.</div>
+                    )}
+                    {kidChores.map(chore => (
+                      editingId === chore.id ? (
+                        <EditChoreRow
+                          key={chore.id}
+                          chore={chore}
+                          onSave={changes => { updateChore(k.id, chore.id, changes); setEditingId(null); }}
+                          onCancel={() => setEditingId(null)}
+                        />
+                      ) : (
+                        <div key={chore.id} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+                          <span className="text-base">{chore.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-gray-800">{chore.name}</div>
+                            {repeatLabel(chore.repeat) && (
+                              <div className="text-xs text-gray-400">{repeatLabel(chore.repeat)}</div>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => setEditingId(chore.id)}
+                            className="text-xs text-brand font-semibold bg-transparent border-none cursor-pointer px-1"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => removeChore(k.id, chore.id)}
+                            className="text-gray-300 hover:text-red-400 bg-transparent border-none cursor-pointer text-xl leading-none px-1"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )
+                    ))}
+                  </div>
+                  <AddChoreRow
+                    kidId={k.id}
+                    allChoreNames={allChoreNames}
+                    allChores={allChores}
+                    onAdd={addChore}
+                  />
+                </div>
+              )}
             </div>
           );
         })}
