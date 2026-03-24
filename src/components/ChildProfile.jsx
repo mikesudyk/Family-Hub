@@ -23,8 +23,20 @@ function getWeekDays() {
   });
 }
 
+// Epoch: Mon Jan 6, 2025. Even weeks from this date are "active" biweekly weeks.
+function isBiweeklyActiveWeek(date = new Date()) {
+  const EPOCH = new Date('2025-01-06').getTime();
+  const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+  const d = new Date(date);
+  const day = d.getDay();
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+  monday.setHours(0, 0, 0, 0);
+  return Math.round((monday.getTime() - EPOCH) / MS_PER_WEEK) % 2 === 0;
+}
+
 function parseRepeat(repeat) {
-  if (!repeat || repeat === 'once' || repeat === 'daily') return repeat;
+  if (!repeat || repeat === 'once' || repeat === 'daily' || repeat === 'biweekly') return repeat;
   if (Array.isArray(repeat)) return repeat;
   try { const a = JSON.parse(repeat); if (Array.isArray(a)) return a; } catch {}
   // PostgreSQL array formats: {"Mon","Wed"} or {Mon,Wed}
@@ -37,20 +49,23 @@ function repeatLabel(repeat) {
   const r = parseRepeat(repeat);
   if (!r || r === 'once') return null;
   if (r === 'daily') return 'Every day';
+  if (r === 'biweekly') return 'Every other week';
   if (Array.isArray(r)) return r.join(' · ');
   return null;
 }
 
-function choreAppliesOnDay(chore, dayAbbr, isToday) {
+function choreAppliesOnDay(chore, dayAbbr, isToday, date) {
   const r = parseRepeat(chore.repeat);
   if (!r || r === 'once') return isToday;
   if (r === 'daily') return true;
+  if (r === 'biweekly') return isBiweeklyActiveWeek(date);
   if (Array.isArray(r)) return r.includes(dayAbbr);
   return false;
 }
 
 function appliesToday(chore) {
-  return choreAppliesOnDay(chore, DAY_ABBRS[new Date().getDay()], true);
+  const today = new Date();
+  return choreAppliesOnDay(chore, DAY_ABBRS[today.getDay()], true, today);
 }
 
 function WeekView({ chores }) {
@@ -77,7 +92,7 @@ function WeekView({ chores }) {
         const abbr = DAY_ABBRS[day.getDay()];
         const isToday = day.getTime() === today.getTime();
         const isPast  = day < today;
-        const dayChores = chores.filter(c => choreAppliesOnDay(c, abbr, isToday));
+        const dayChores = chores.filter(c => choreAppliesOnDay(c, abbr, isToday, day));
 
         return (
           <div

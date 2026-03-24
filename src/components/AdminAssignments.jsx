@@ -16,6 +16,7 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 function repeatLabel(repeat) {
   if (!repeat || repeat === 'once') return null;
   if (repeat === 'daily') return 'Every day';
+  if (repeat === 'biweekly') return 'Every other week';
   if (Array.isArray(repeat)) return repeat.join(', ');
   return null;
 }
@@ -50,6 +51,7 @@ function AddChoreRow({ kidId, allChoreNames, allChores, onAdd }) {
   function handleAdd() {
     let repeat = null;
     if (repeatMode === 'daily') repeat = 'daily';
+    else if (repeatMode === 'biweekly') repeat = 'biweekly';
     else if (repeatMode === 'days' && selectedDays.length > 0) repeat = [...selectedDays];
     onAdd(kidId, selectedName, selectedIcon, repeat);
     setStep('closed');
@@ -125,7 +127,7 @@ function AddChoreRow({ kidId, allChoreNames, allChores, onAdd }) {
 
       {/* Repeat mode pills */}
       <div className="flex gap-1.5">
-        {[{ label: 'Once', value: 'once' }, { label: 'Every day', value: 'daily' }, { label: 'Choose days', value: 'days' }].map(opt => (
+        {[{ label: 'Once', value: 'once' }, { label: 'Every day', value: 'daily' }, { label: 'Every other week', value: 'biweekly' }, { label: 'Choose days', value: 'days' }].map(opt => (
           <button
             key={opt.value}
             onClick={() => setRepeatMode(opt.value)}
@@ -165,12 +167,13 @@ function AddChoreRow({ kidId, allChoreNames, allChores, onAdd }) {
   );
 }
 
-function EditChoreRow({ chore, kidId, onSave, onCancel }) {
+function EditChoreRow({ chore, onSave, onCancel }) {
   const [name, setName] = useState(chore.name);
   const [icon, setIcon] = useState(chore.icon);
   const [repeatMode, setRepeatMode] = useState(
     !chore.repeat || chore.repeat === 'once' ? 'once'
-    : chore.repeat === 'daily' ? 'daily' : 'days'
+    : chore.repeat === 'daily' ? 'daily'
+    : chore.repeat === 'biweekly' ? 'biweekly' : 'days'
   );
   const [selectedDays, setSelectedDays] = useState(
     Array.isArray(chore.repeat) ? chore.repeat : []
@@ -185,6 +188,7 @@ function EditChoreRow({ chore, kidId, onSave, onCancel }) {
     if (!trimmed) return;
     let repeat = null;
     if (repeatMode === 'daily') repeat = 'daily';
+    else if (repeatMode === 'biweekly') repeat = 'biweekly';
     else if (repeatMode === 'days' && selectedDays.length > 0) repeat = [...selectedDays];
     onSave({ name: trimmed, icon, repeat });
   }
@@ -202,7 +206,7 @@ function EditChoreRow({ chore, kidId, onSave, onCancel }) {
         />
       </div>
       <div className="flex gap-1.5">
-        {[{ label: 'Once', value: 'once' }, { label: 'Every day', value: 'daily' }, { label: 'Choose days', value: 'days' }].map(opt => (
+        {[{ label: 'Once', value: 'once' }, { label: 'Every day', value: 'daily' }, { label: 'Every other week', value: 'biweekly' }, { label: 'Choose days', value: 'days' }].map(opt => (
           <button
             key={opt.value}
             onClick={() => setRepeatMode(opt.value)}
@@ -277,7 +281,6 @@ export default function AdminAssignments() {
                     <EditChoreRow
                       key={chore.id}
                       chore={chore}
-                      kidId={k.id}
                       onSave={changes => { updateChore(k.id, chore.id, changes); setEditingId(null); }}
                       onCancel={() => setEditingId(null)}
                     />

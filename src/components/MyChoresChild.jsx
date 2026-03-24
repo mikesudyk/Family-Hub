@@ -4,7 +4,7 @@ import { BackButton, UncheckedCircle } from './ui';
 const DAY_ABBRS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function parseRepeat(repeat) {
-  if (!repeat || repeat === 'once' || repeat === 'daily') return repeat;
+  if (!repeat || repeat === 'once' || repeat === 'daily' || repeat === 'biweekly') return repeat;
   if (Array.isArray(repeat)) return repeat;
   try { const a = JSON.parse(repeat); if (Array.isArray(a)) return a; } catch {}
   // PostgreSQL array formats: {"Mon","Wed"} or {Mon,Wed}
@@ -13,10 +13,22 @@ function parseRepeat(repeat) {
   return inner.split(',').map(v => v.trim().replace(/^"|"$/g, '')).filter(Boolean);
 }
 
+function isBiweeklyActiveWeek(date = new Date()) {
+  const EPOCH = new Date('2025-01-06').getTime();
+  const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+  const d = new Date(date);
+  const day = d.getDay();
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+  monday.setHours(0, 0, 0, 0);
+  return Math.round((monday.getTime() - EPOCH) / MS_PER_WEEK) % 2 === 0;
+}
+
 function appliesToday(chore) {
   const r = parseRepeat(chore.repeat);
   if (!r || r === 'once') return true;
   if (r === 'daily') return true;
+  if (r === 'biweekly') return isBiweeklyActiveWeek();
   if (Array.isArray(r)) return r.includes(DAY_ABBRS[new Date().getDay()]);
   return true;
 }
@@ -63,7 +75,7 @@ export default function MyChoresChild({ memberId }) {
             <div className="font-bold text-sm mb-1 text-center">{c.name}</div>
             {(() => {
               const r = parseRepeat(c.repeat);
-              const label = !r || r === 'once' ? null : r === 'daily' ? 'Every day' : Array.isArray(r) ? r.join(' · ') : null;
+              const label = !r || r === 'once' ? null : r === 'daily' ? 'Every day' : r === 'biweekly' ? 'Every other week' : Array.isArray(r) ? r.join(' · ') : null;
               return label ? <div className="text-xs font-medium text-blue-500 mb-1">{label}</div> : null;
             })()}
             <div className="text-2xl">{c.done ? '✅' : <UncheckedCircle />}</div>
@@ -77,7 +89,7 @@ export default function MyChoresChild({ memberId }) {
           <div className="space-y-1">
             {otherChores.map(c => {
               const r = parseRepeat(c.repeat);
-              const label = !r || r === 'once' ? null : r === 'daily' ? 'Every day' : Array.isArray(r) ? r.join(' · ') : null;
+              const label = !r || r === 'once' ? null : r === 'daily' ? 'Every day' : r === 'biweekly' ? 'Every other week' : Array.isArray(r) ? r.join(' · ') : null;
               return (
                 <div key={c.id} className="flex items-center gap-2 bg-white rounded-xl px-3 py-2 opacity-50">
                   <span className="text-base">{c.icon}</span>

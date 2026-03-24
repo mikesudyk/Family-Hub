@@ -322,6 +322,7 @@ export function MenuRow({ onClick, children }) {
 function getRepeatLabel(repeat) {
   if (!repeat || repeat === 'once') return null;
   if (repeat === 'daily') return 'Every day';
+  if (repeat === 'biweekly') return 'Every other week';
   if (Array.isArray(repeat)) return repeat.join(' · ');
   try { const a = JSON.parse(repeat); if (Array.isArray(a)) return a.join(' · '); } catch {}
   return null;
