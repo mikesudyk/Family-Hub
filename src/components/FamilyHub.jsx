@@ -3,6 +3,19 @@ import { useApp } from '../context/AppContext';
 import { CALENDAR_EVENTS, getColorClass } from '../data/calendar';
 import { AvatarRing, SectionLabel, SyncDot, UncheckedCircle } from './ui';
 
+function formatDoneAt(doneAt) {
+  if (!doneAt || doneAt === 'just now') return 'just now';
+  const d = new Date(doneAt);
+  if (isNaN(d)) return doneAt;
+  const diffMs = Date.now() - d.getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 12) return `${hrs}h ago`;
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
 const VERSES = [
   { text: "I can do all things through Christ who strengthens me.", ref: "Phil. 4:13" },
   { text: "The Lord is my shepherd; I shall not want.", ref: "Ps. 23:1" },
@@ -618,7 +631,7 @@ export default function FamilyHub() {
                 <div className="text-xl">{c.icon}</div>
                 <div>
                   <div className="text-sm font-semibold">{c.kid.name} completed "{c.name}"</div>
-                  <div className="text-xs text-gray-400">{c.doneAt}</div>
+                  <div className="text-xs text-gray-400">{formatDoneAt(c.doneAt)}</div>
                 </div>
                 <div className="ml-auto text-green-500 text-base">✓</div>
               </div>
