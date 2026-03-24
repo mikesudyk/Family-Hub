@@ -36,7 +36,7 @@ export function AppProvider({ children }) {
   const [tierOverrides, setTierOverrides]   = useState({});
   const [memberOverrides, setMemberOverrides] = useState({});
   const [goals, setGoals]             = useState({});
-  const [familyGoals, setFamilyGoals] = useState({});
+  const [familyGoals, setFamilyGoals] = useState({ active: [], history: [] });
   const [personalTodos, setPersonalTodos] = useState({});
   const [parentPriorities, setParentPriorities] = useState({});
   const [mealsOnDeck, setMealsOnDeck] = useState([]);
@@ -64,7 +64,7 @@ export function AppProvider({ children }) {
     setChores(data.chores || {});
     setChoreLists(data.choreLists || []);
     setGoals(data.goals || {});
-    setFamilyGoals(data.familyGoals || {});
+    setFamilyGoals(data.familyGoals || { active: [], history: [] });
     setPersonalTodos(data.personalTodos || {});
     setParentPriorities(data.parentPriorities || {});
     setMealsOnDeck(data.mealsOnDeck || []);
@@ -150,19 +150,23 @@ export function AppProvider({ children }) {
     })));
 
     // Family goals
-    socket.on('familyGoal:added', ({ id, date, text, done }) => setFamilyGoals(prev => {
-      const list = prev[date] || [];
-      if (list.some(g => g.id === id)) return prev;
-      return { ...prev, [date]: [...list, { id, text, done }] };
+    socket.on('familyGoal:added', ({ id, text, done, completedAt }) => setFamilyGoals(prev => {
+      if ((prev.active || []).some(g => g.id === id)) return prev;
+      return { ...prev, active: [...(prev.active || []), { id, text, done, completedAt }] };
     }));
-    socket.on('familyGoal:toggled', ({ id, date, done }) => setFamilyGoals(prev => ({
-      ...prev, [date]: (prev[date] || []).map(g => g.id === id ? { ...g, done } : g),
+    socket.on('familyGoal:toggled', ({ id, done, completedAt }) => setFamilyGoals(prev => {
+      const all = [...(prev.active || []), ...(prev.history || [])].map(g =>
+        g.id === id ? { ...g, done, completedAt } : g
+      );
+      return { active: all.filter(g => !g.done), history: all.filter(g => g.done) };
+    }));
+    socket.on('familyGoal:updated', ({ id, text }) => setFamilyGoals(prev => ({
+      active:  (prev.active  || []).map(g => g.id === id ? { ...g, text } : g),
+      history: (prev.history || []).map(g => g.id === id ? { ...g, text } : g),
     })));
-    socket.on('familyGoal:updated', ({ id, date, text }) => setFamilyGoals(prev => ({
-      ...prev, [date]: (prev[date] || []).map(g => g.id === id ? { ...g, text } : g),
-    })));
-    socket.on('familyGoal:deleted', ({ date, id }) => setFamilyGoals(prev => ({
-      ...prev, [date]: (prev[date] || []).filter(g => g.id !== id),
+    socket.on('familyGoal:deleted', ({ id }) => setFamilyGoals(prev => ({
+      active:  (prev.active  || []).filter(g => g.id !== id),
+      history: (prev.history || []).filter(g => g.id !== id),
     })));
 
     // Personal todos
@@ -336,7 +340,7 @@ export function AppProvider({ children }) {
     setChores(JSON.parse(JSON.stringify(INITIAL_CHORES)));
     setChoreLists([]);
     setGoals({});
-    setFamilyGoals({});
+    setFamilyGoals({ active: [], history: [] });
     setPersonalTodos({});
     setParentPriorities({});
     setMealsOnDeck([]);
@@ -601,43 +605,45 @@ export function AppProvider({ children }) {
 
   // ── Family goals ─────────────────────────────────────────────────────────────
 
-  function toggleFamilyGoal(date, goalId) {
-    setFamilyGoals(prev => ({
-      ...prev,
-      [date]: (prev[date] || []).map(g => g.id === goalId ? { ...g, done: !g.done } : g),
-    }));
+  function toggleFamilyGoal(goalId) {
+    setFamilyGoals(prev => {
+      const all = [...(prev.active || []), ...(prev.history || [])].map(g =>
+        g.id === goalId ? { ...g, done: !g.done, completedAt: !g.done ? new Date().toISOString() : null } : g
+      );
+      return { active: all.filter(g => !g.done), history: all.filter(g => g.done) };
+    });
     apiFetch(`/api/goals/family/${goalId}/toggle`, { method: 'PUT' }).catch(console.error);
   }
 
-  function addFamilyGoal(date, text) {
+  function addFamilyGoal(text) {
     const tempId = Date.now();
     setFamilyGoals(prev => ({
       ...prev,
-      [date]: [...(prev[date] || []), { id: tempId, text, done: false }],
+      active: [...(prev.active || []), { id: tempId, text, done: false, completedAt: null }],
     }));
     apiFetch('/api/goals/family', {
       method: 'POST',
-      body: JSON.stringify({ date, text }),
+      body: JSON.stringify({ text }),
     }).then(g => {
       setFamilyGoals(prev => ({
         ...prev,
-        [date]: (prev[date] || []).filter(x => x.id !== g.id).map(x => x.id === tempId ? { ...x, id: g.id } : x),
+        active: (prev.active || []).filter(x => x.id !== g.id).map(x => x.id === tempId ? { ...x, id: g.id } : x),
       }));
     }).catch(console.error);
   }
 
-  function removeFamilyGoal(date, goalId) {
+  function removeFamilyGoal(goalId) {
     setFamilyGoals(prev => ({
-      ...prev,
-      [date]: (prev[date] || []).filter(g => g.id !== goalId),
+      active:  (prev.active  || []).filter(g => g.id !== goalId),
+      history: (prev.history || []).filter(g => g.id !== goalId),
     }));
     apiFetch(`/api/goals/family/${goalId}`, { method: 'DELETE' }).catch(console.error);
   }
 
-  function updateFamilyGoal(date, goalId, text) {
+  function updateFamilyGoal(goalId, text) {
     setFamilyGoals(prev => ({
-      ...prev,
-      [date]: (prev[date] || []).map(g => g.id === goalId ? { ...g, text } : g),
+      active:  (prev.active  || []).map(g => g.id === goalId ? { ...g, text } : g),
+      history: (prev.history || []).map(g => g.id === goalId ? { ...g, text } : g),
     }));
     apiFetch(`/api/goals/family/${goalId}`, {
       method: 'PUT',

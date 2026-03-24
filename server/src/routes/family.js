@@ -32,7 +32,12 @@ router.get('/', async (req, res) => {
       pool.query('SELECT * FROM chore_lists WHERE family_id = $1 ORDER BY id', [familyId]),
       pool.query('SELECT cli.* FROM chore_list_items cli JOIN chore_lists cl ON cl.id = cli.chore_list_id WHERE cl.family_id = $1 ORDER BY cli.id', [familyId]),
       pool.query('SELECT * FROM goals WHERE family_id = $1 ORDER BY id', [familyId]),
-      pool.query("SELECT * FROM family_goals WHERE family_id = $1 ORDER BY date DESC", [familyId]),
+      pool.query(
+        `SELECT * FROM family_goals WHERE family_id = $1
+         AND (done = false OR completed_at > NOW() - INTERVAL '30 days')
+         ORDER BY done ASC, id ASC`,
+        [familyId]
+      ),
       pool.query('SELECT * FROM personal_todos WHERE family_id = $1 ORDER BY id', [familyId]),
       pool.query("SELECT * FROM parent_priorities WHERE family_id = $1 ORDER BY date DESC, id", [familyId]),
       pool.query('SELECT * FROM meal_library WHERE family_id = $1 ORDER BY id', [familyId]),
@@ -90,12 +95,12 @@ router.get('/', async (req, res) => {
       goals[mid].push({ id: g.id, text: g.text, dueDate: g.due_date ? g.due_date.toISOString().split('T')[0] : null, done: g.done });
     }
 
-    // Family goals map: { 'YYYY-MM-DD': [...] }
-    const familyGoals = {};
+    // Family goals: { active: [...], history: [...] }
+    const familyGoals = { active: [], history: [] };
     for (const g of familyGoalsRes.rows) {
-      const d = g.date.toISOString().split('T')[0];
-      if (!familyGoals[d]) familyGoals[d] = [];
-      familyGoals[d].push({ id: g.id, text: g.text, done: g.done });
+      const item = { id: g.id, text: g.text, done: g.done, completedAt: g.completed_at || null };
+      if (g.done) familyGoals.history.push(item);
+      else familyGoals.active.push(item);
     }
 
     // Personal todos map: { memberId: [...] }

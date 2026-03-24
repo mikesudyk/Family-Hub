@@ -74,15 +74,15 @@ router.delete('/:id', async (req, res) => {
 
 router.post('/family', async (req, res) => {
   const { familyId } = req;
-  const { date, text } = req.body;
-  if (!date || !text) return res.status(400).json({ error: 'date and text required' });
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'text required' });
   try {
     const r = await pool.query(
-      'INSERT INTO family_goals (family_id, date, text) VALUES ($1,$2,$3) RETURNING *',
-      [familyId, date, text]
+      'INSERT INTO family_goals (family_id, date, text) VALUES ($1, CURRENT_DATE, $2) RETURNING *',
+      [familyId, text]
     );
     const g = r.rows[0];
-    const out = { id: g.id, date, text: g.text, done: false };
+    const out = { id: g.id, text: g.text, done: false, completedAt: null };
     broadcast(familyId, 'familyGoal:added', out);
     res.status(201).json(out);
   } catch (err) {
@@ -94,12 +94,15 @@ router.put('/family/:id/toggle', async (req, res) => {
   const { familyId } = req;
   try {
     const r = await pool.query(
-      'UPDATE family_goals SET done = NOT done WHERE id = $1 AND family_id = $2 RETURNING *',
+      `UPDATE family_goals
+       SET done = NOT done,
+           completed_at = CASE WHEN NOT done THEN NOW() ELSE NULL END
+       WHERE id = $1 AND family_id = $2 RETURNING *`,
       [req.params.id, familyId]
     );
     const g = r.rows[0];
-    broadcast(familyId, 'familyGoal:toggled', { id: g.id, date: g.date.toISOString().split('T')[0], done: g.done });
-    res.json({ id: g.id, done: g.done });
+    broadcast(familyId, 'familyGoal:toggled', { id: g.id, done: g.done, completedAt: g.completed_at || null });
+    res.json({ id: g.id, done: g.done, completedAt: g.completed_at || null });
   } catch (err) {
     res.status(500).json({ error: 'Failed to toggle family goal' });
   }
@@ -114,7 +117,7 @@ router.put('/family/:id', async (req, res) => {
       [text, req.params.id, familyId]
     );
     const g = r.rows[0];
-    broadcast(familyId, 'familyGoal:updated', { id: g.id, date: g.date.toISOString().split('T')[0], text: g.text });
+    broadcast(familyId, 'familyGoal:updated', { id: g.id, text: g.text });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update family goal' });
@@ -124,11 +127,8 @@ router.put('/family/:id', async (req, res) => {
 router.delete('/family/:id', async (req, res) => {
   const { familyId } = req;
   try {
-    const r = await pool.query(
-      'DELETE FROM family_goals WHERE id = $1 AND family_id = $2 RETURNING date',
-      [req.params.id, familyId]
-    );
-    broadcast(familyId, 'familyGoal:deleted', { id: Number(req.params.id), date: r.rows[0]?.date?.toISOString().split('T')[0] });
+    await pool.query('DELETE FROM family_goals WHERE id = $1 AND family_id = $2', [req.params.id, familyId]);
+    broadcast(familyId, 'familyGoal:deleted', { id: Number(req.params.id) });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete family goal' });

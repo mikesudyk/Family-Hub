@@ -402,27 +402,16 @@ function ActiveListCard() {
 }
 
 
-function formatPastDate(dateStr) {
-  const d = new Date(dateStr + 'T00:00:00');
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const diff = Math.round((today - d) / 86400000);
-  if (diff === 1) return 'Yesterday';
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-}
 
 function FamilyGoalsSection() {
-  const { familyGoals, toggleFamilyGoal, addFamilyGoal, removeFamilyGoal, updateFamilyGoal } = useApp();
-  const [showHistory, setShowHistory] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const { familyGoals, toggleFamilyGoal, addFamilyGoal, removeFamilyGoal, navigate } = useApp();
   const [newGoalText, setNewGoalText] = useState('');
-  const today = new Date().toISOString().split('T')[0];
-  const todayGoals = familyGoals[today] || [];
-  const pastDates = Object.keys(familyGoals).filter(d => d < today).sort().reverse();
+  const active = familyGoals.active || [];
 
   function handleAdd() {
     const text = newGoalText.trim();
     if (!text) return;
-    addFamilyGoal(today, text);
+    addFamilyGoal(text);
     setNewGoalText('');
   }
 
@@ -430,107 +419,52 @@ function FamilyGoalsSection() {
     <div>
       <div className="flex items-center gap-2 mb-2 mt-5">
         <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">Family Goals</div>
-        <button
-          onClick={() => { setEditing(e => !e); setShowHistory(false); setNewGoalText(''); }}
-          className="bg-transparent border-none cursor-pointer p-0 leading-none"
-          style={{ color: editing ? '#4FA45A' : '#9ca3af' }}
-          title={editing ? 'Done editing' : 'Edit goals'}
-        >
-          {editing ? (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          ) : (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
-          )}
-        </button>
         <div className="flex-1" />
-        {pastDates.length > 0 && !editing && (
-          <button
-            onClick={() => setShowHistory(h => !h)}
-            className="text-xs font-semibold text-blue-500 bg-transparent border-none cursor-pointer"
-          >
-            {showHistory ? 'Hide History' : 'History'}
-          </button>
-        )}
+        <button
+          onClick={() => navigate('family-goals')}
+          className="text-xs font-semibold text-brand bg-transparent border-none cursor-pointer"
+        >
+          See all →
+        </button>
       </div>
 
-      {/* Today's goals */}
-      {todayGoals.length === 0 && !editing ? (
+      {active.length === 0 ? (
         <div className="bg-white rounded-xl p-4 text-center text-gray-400 text-sm mb-2.5">
-          No goals for today.
+          No active goals.
         </div>
       ) : (
-        todayGoals.map(g => (
+        active.map(g => (
           <div key={g.id} className="bg-white rounded-xl mb-2 flex items-center gap-3 px-3.5 py-3">
-            {editing ? (
-              <>
-                <input
-                  value={g.text}
-                  onChange={e => updateFamilyGoal(today, g.id, e.target.value)}
-                  className="flex-1 text-sm font-semibold text-gray-900 bg-transparent border-none outline-none"
-                />
-                <button
-                  onClick={() => removeFamilyGoal(today, g.id)}
-                  className="text-gray-300 hover:text-red-400 bg-transparent border-none cursor-pointer text-lg leading-none"
-                >×</button>
-              </>
-            ) : (
-              <button
-                onClick={() => toggleFamilyGoal(today, g.id)}
-                className="w-full flex items-center gap-3 bg-transparent border-none cursor-pointer text-left"
-              >
-                <span className={`text-lg leading-none ${g.done ? 'text-green-500' : 'text-gray-300'}`}>
-                  {g.done ? '✅' : <UncheckedCircle />}
-                </span>
-                <span className={`text-sm font-semibold ${g.done ? 'line-through text-gray-400' : 'text-gray-900'}`}>
-                  {g.text}
-                </span>
-              </button>
-            )}
+            <button
+              onClick={() => toggleFamilyGoal(g.id)}
+              className="text-gray-300 bg-transparent border-none cursor-pointer p-0 flex-shrink-0 text-lg leading-none"
+            >
+              <UncheckedCircle />
+            </button>
+            <span className="flex-1 text-sm font-semibold text-gray-900">{g.text}</span>
+            <button
+              onClick={() => removeFamilyGoal(g.id)}
+              className="text-gray-300 hover:text-red-400 bg-transparent border-none cursor-pointer text-lg leading-none"
+            >×</button>
           </div>
         ))
       )}
 
-      {/* Add new goal (edit mode) */}
-      {editing && (
-        <div className="flex items-center gap-2 mb-2">
-          <input
-            autoFocus={todayGoals.length === 0}
-            value={newGoalText}
-            onChange={e => setNewGoalText(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleAdd()}
-            placeholder="Add a goal…"
-            className="flex-1 bg-white rounded-xl px-3.5 py-3 text-sm border-none outline-none"
-          />
+      <div className="flex items-center gap-2 mt-1">
+        <input
+          value={newGoalText}
+          onChange={e => setNewGoalText(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleAdd()}
+          placeholder="Add a goal…"
+          className="flex-1 bg-white rounded-xl px-3.5 py-2.5 text-sm border-none outline-none"
+        />
+        {newGoalText.trim() && (
           <button
             onClick={handleAdd}
-            className="text-xs font-semibold bg-gray-900 text-white px-3 py-2.5 rounded-xl border-none cursor-pointer"
+            className="text-xs font-semibold bg-brand text-white px-3 py-2.5 rounded-xl border-none cursor-pointer"
           >Add</button>
-        </div>
-      )}
-
-      {/* History (read-only) */}
-      {showHistory && pastDates.map(date => (
-        <div key={date} className="mb-3 mt-1">
-          <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1 mt-2">
-            {formatPastDate(date)}
-          </div>
-          {(familyGoals[date] || []).map(g => (
-            <div key={g.id} className="flex items-center gap-3 bg-white rounded-xl p-3.5 mb-1.5 opacity-70">
-              <span className={`text-lg leading-none ${g.done ? 'text-green-500' : 'text-gray-300'}`}>
-                {g.done ? '✅' : <UncheckedCircle />}
-              </span>
-              <span className={`text-sm ${g.done ? 'line-through text-gray-400' : 'text-gray-600'}`}>
-                {g.text}
-              </span>
-            </div>
-          ))}
-        </div>
-      ))}
+        )}
+      </div>
     </div>
   );
 }
