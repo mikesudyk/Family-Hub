@@ -57,6 +57,29 @@ router.put('/:id/toggle', async (req, res) => {
   }
 });
 
+// PUT /api/chores/:id — update name, icon, repeat
+router.put('/:id', async (req, res) => {
+  const { familyId } = req;
+  const { id } = req.params;
+  const { name, icon, repeat } = req.body;
+  if (!name) return res.status(400).json({ error: 'name required' });
+  try {
+    const r = await pool.query(
+      `UPDATE chores SET name = $1, icon = $2, repeat = $3
+       WHERE id = $4 AND family_id = $5 RETURNING *`,
+      [name, icon || '✅', serializeRepeat(repeat ?? null), id, familyId]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Chore not found' });
+    const c = r.rows[0];
+    const out = { id: c.id, name: c.name, icon: c.icon, repeat: parseRepeat(c.repeat) };
+    broadcast(familyId, 'chore:updated', { memberId: c.member_id, chore: out });
+    res.json({ ...out, memberId: c.member_id });
+  } catch (err) {
+    console.error('[PUT /chores/:id]', err);
+    res.status(500).json({ error: 'Failed to update chore' });
+  }
+});
+
 // DELETE /api/chores/:id
 router.delete('/:id', async (req, res) => {
   const { familyId } = req;

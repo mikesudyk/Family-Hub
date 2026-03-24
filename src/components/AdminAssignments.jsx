@@ -165,8 +165,83 @@ function AddChoreRow({ kidId, allChoreNames, allChores, onAdd }) {
   );
 }
 
+function EditChoreRow({ chore, kidId, onSave, onCancel }) {
+  const [name, setName] = useState(chore.name);
+  const [icon, setIcon] = useState(chore.icon);
+  const [repeatMode, setRepeatMode] = useState(
+    !chore.repeat || chore.repeat === 'once' ? 'once'
+    : chore.repeat === 'daily' ? 'daily' : 'days'
+  );
+  const [selectedDays, setSelectedDays] = useState(
+    Array.isArray(chore.repeat) ? chore.repeat : []
+  );
+
+  function toggleDay(day) {
+    setSelectedDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+  }
+
+  function handleSave() {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    let repeat = null;
+    if (repeatMode === 'daily') repeat = 'daily';
+    else if (repeatMode === 'days' && selectedDays.length > 0) repeat = [...selectedDays];
+    onSave({ name: trimmed, icon, repeat });
+  }
+
+  return (
+    <div className="bg-brand-light rounded-xl px-3 py-3 space-y-2.5">
+      <div className="flex items-center gap-2">
+        <EmojiSelect value={icon} onChange={setIcon} />
+        <input
+          autoFocus
+          value={name}
+          onChange={e => setName(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleSave()}
+          className="flex-1 bg-white rounded-lg px-3 py-1.5 text-sm border-none outline-none"
+        />
+      </div>
+      <div className="flex gap-1.5">
+        {[{ label: 'Once', value: 'once' }, { label: 'Every day', value: 'daily' }, { label: 'Choose days', value: 'days' }].map(opt => (
+          <button
+            key={opt.value}
+            onClick={() => setRepeatMode(opt.value)}
+            className={`text-xs font-semibold px-2.5 py-1 rounded-lg border-none cursor-pointer ${repeatMode === opt.value ? 'bg-brand text-white' : 'bg-white text-gray-600'}`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      {repeatMode === 'days' && (
+        <div className="flex gap-1">
+          {DAYS.map(day => (
+            <button
+              key={day}
+              onClick={() => toggleDay(day)}
+              className={`flex-1 text-xs font-semibold py-1.5 rounded-lg border-none cursor-pointer ${selectedDays.includes(day) ? 'bg-brand text-white' : 'bg-white text-gray-500'}`}
+            >
+              {day[0]}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-2">
+        <button
+          onClick={handleSave}
+          disabled={repeatMode === 'days' && selectedDays.length === 0}
+          className="text-xs font-semibold bg-brand text-white px-4 py-1.5 rounded-lg border-none cursor-pointer disabled:opacity-40"
+        >
+          Save
+        </button>
+        <button onClick={onCancel} className="text-xs text-gray-400 bg-transparent border-none cursor-pointer">Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminAssignments() {
-  const { chores, getChores, addChore, removeChore, getAllMembers } = useApp();
+  const { chores, getChores, addChore, removeChore, updateChore, getAllMembers } = useApp();
+  const [editingId, setEditingId] = useState(null);
   const kids = getAllMembers().filter(m => m.role === 'child' && m.tier !== 'infant');
 
   const allChores = Object.values(chores).flat();
@@ -198,21 +273,37 @@ export default function AdminAssignments() {
                   <div className="text-xs text-gray-400 py-1">No chores assigned yet.</div>
                 )}
                 {kidChores.map(chore => (
-                  <div key={chore.id} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
-                    <span className="text-base">{chore.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-800">{chore.name}</div>
-                      {repeatLabel(chore.repeat) && (
-                        <div className="text-xs text-gray-400">{repeatLabel(chore.repeat)}</div>
-                      )}
+                  editingId === chore.id ? (
+                    <EditChoreRow
+                      key={chore.id}
+                      chore={chore}
+                      kidId={k.id}
+                      onSave={changes => { updateChore(k.id, chore.id, changes); setEditingId(null); }}
+                      onCancel={() => setEditingId(null)}
+                    />
+                  ) : (
+                    <div key={chore.id} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+                      <span className="text-base">{chore.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-800">{chore.name}</div>
+                        {repeatLabel(chore.repeat) && (
+                          <div className="text-xs text-gray-400">{repeatLabel(chore.repeat)}</div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setEditingId(chore.id)}
+                        className="text-xs text-brand font-semibold bg-transparent border-none cursor-pointer px-1"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => removeChore(k.id, chore.id)}
+                        className="text-gray-300 hover:text-red-400 bg-transparent border-none cursor-pointer text-xl leading-none px-1"
+                      >
+                        ×
+                      </button>
                     </div>
-                    <button
-                      onClick={() => removeChore(k.id, chore.id)}
-                      className="text-gray-300 hover:text-red-400 bg-transparent border-none cursor-pointer text-xl leading-none px-1"
-                    >
-                      ×
-                    </button>
-                  </div>
+                  )
                 ))}
               </div>
 

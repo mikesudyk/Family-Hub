@@ -455,6 +455,17 @@ export function AppProvider({ children }) {
     apiFetch(`/api/chores/${choreId}`, { method: 'DELETE' }).catch(console.error);
   }
 
+  function updateChore(kidId, choreId, changes) {
+    setChores(prev => ({
+      ...prev,
+      [kidId]: (prev[kidId] || []).map(c => c.id === choreId ? { ...c, ...changes } : c),
+    }));
+    apiFetch(`/api/chores/${choreId}`, {
+      method: 'PUT',
+      body: JSON.stringify(changes),
+    }).catch(console.error);
+  }
+
   function assignListEvent(listId, listName, assignments) {
     const eventId = Date.now();
     setActiveListEvent({ id: eventId, name: listName, listId });
@@ -904,7 +915,7 @@ export function AppProvider({ children }) {
       getAllMembers,
       screen, screenData, navigate, goBack, canGoBack: navStack.length > 0,
       hubName, setHubName: v => updateSettings({ hubName: v }),
-      chores, toggleChore, addChore, removeChore,
+      chores, toggleChore, addChore, removeChore, updateChore,
       tierOverrides, setTier, getTier,
       memberOverrides, updateMember, addMember,
       countdown, setCountdown, countdownMode, setCountdownMode,
