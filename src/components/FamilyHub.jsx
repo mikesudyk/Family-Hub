@@ -403,10 +403,23 @@ function ActiveListCard() {
 
 
 
+function timeAgo(isoStr) {
+  if (!isoStr) return '';
+  const days = Math.floor((Date.now() - new Date(isoStr).getTime()) / 86400000);
+  if (days === 0) return 'today';
+  if (days === 1) return 'yesterday';
+  return `${days} days ago`;
+}
+
 function FamilyGoalsSection() {
-  const { familyGoals, toggleFamilyGoal, addFamilyGoal, removeFamilyGoal, navigate } = useApp();
+  const { familyGoals, toggleFamilyGoal, addFamilyGoal, removeFamilyGoal, updateFamilyGoal } = useApp();
   const [newGoalText, setNewGoalText] = useState('');
-  const active = familyGoals.active || [];
+  const [showHistory, setShowHistory] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState('');
+
+  const active  = familyGoals.active  || [];
+  const history = familyGoals.history || [];
 
   function handleAdd() {
     const text = newGoalText.trim();
@@ -415,17 +428,30 @@ function FamilyGoalsSection() {
     setNewGoalText('');
   }
 
+  function startEdit(g) {
+    setEditingId(g.id);
+    setEditText(g.text);
+  }
+
+  function saveEdit(id) {
+    const text = editText.trim();
+    if (text) updateFamilyGoal(id, text);
+    setEditingId(null);
+  }
+
   return (
     <div>
       <div className="flex items-center gap-2 mb-2 mt-5">
         <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">Family Goals</div>
         <div className="flex-1" />
-        <button
-          onClick={() => navigate('family-goals')}
-          className="text-xs font-semibold text-brand bg-transparent border-none cursor-pointer"
-        >
-          See all →
-        </button>
+        {history.length > 0 && (
+          <button
+            onClick={() => setShowHistory(h => !h)}
+            className="text-xs font-semibold text-brand bg-transparent border-none cursor-pointer"
+          >
+            {showHistory ? 'Hide history' : 'History'}
+          </button>
+        )}
       </div>
 
       {active.length === 0 ? (
@@ -441,16 +467,32 @@ function FamilyGoalsSection() {
             >
               <UncheckedCircle />
             </button>
-            <span className="flex-1 text-sm font-semibold text-gray-900">{g.text}</span>
+            {editingId === g.id ? (
+              <input
+                autoFocus
+                value={editText}
+                onChange={e => setEditText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') saveEdit(g.id); if (e.key === 'Escape') setEditingId(null); }}
+                onBlur={() => saveEdit(g.id)}
+                className="flex-1 text-sm font-semibold text-gray-900 bg-transparent border-none outline-none"
+              />
+            ) : (
+              <span
+                onClick={() => startEdit(g)}
+                className="flex-1 text-sm font-semibold text-gray-900 cursor-text"
+              >
+                {g.text}
+              </span>
+            )}
             <button
               onClick={() => removeFamilyGoal(g.id)}
-              className="text-gray-300 hover:text-red-400 bg-transparent border-none cursor-pointer text-lg leading-none"
+              className="text-gray-300 hover:text-red-400 bg-transparent border-none cursor-pointer text-xl leading-none px-1"
             >×</button>
           </div>
         ))
       )}
 
-      <div className="flex items-center gap-2 mt-1">
+      <div className="flex items-center gap-2 mt-1 mb-2">
         <input
           value={newGoalText}
           onChange={e => setNewGoalText(e.target.value)}
@@ -465,6 +507,27 @@ function FamilyGoalsSection() {
           >Add</button>
         )}
       </div>
+
+      {showHistory && (
+        <div className="mt-2">
+          <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Completed (last 30 days)</div>
+          {history.length === 0 ? (
+            <div className="bg-white rounded-xl p-4 text-center text-gray-400 text-sm">No completed goals yet.</div>
+          ) : (
+            history.map(g => (
+              <div key={g.id} className="bg-white rounded-xl mb-2 flex items-center gap-3 px-3.5 py-3 opacity-60">
+                <button
+                  onClick={() => toggleFamilyGoal(g.id)}
+                  className="text-green-500 bg-transparent border-none cursor-pointer p-0 flex-shrink-0 text-lg leading-none"
+                  title="Mark incomplete"
+                >✅</button>
+                <span className="flex-1 text-sm font-semibold text-gray-500 line-through">{g.text}</span>
+                <span className="text-xs text-gray-400 flex-shrink-0">{timeAgo(g.completedAt)}</span>
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
