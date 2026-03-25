@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import JoinScreen from './components/JoinScreen';
+import ResetPasswordScreen from './components/ResetPasswordScreen';
 import WelcomeScreen from './components/WelcomeScreen';
 import OnboardingFlow from './components/OnboardingFlow';
 import CalendarSetup from './components/CalendarSetup';
@@ -334,8 +335,9 @@ function LoadingShell() {
 function AppContent() {
   const { authStatus, isOnboarding, justSignedUp, setJustSignedUp, setCalendarConnections } = useApp();
 
-  // Detect /invite/:token in the URL
+  // Detect /invite/:token and /reset-password/:token in the URL
   const inviteToken = window.location.pathname.match(/^\/invite\/([a-f0-9]+)$/)?.[1] ?? null;
+  const resetToken  = window.location.pathname.match(/^\/reset-password\/([a-f0-9]+)$/)?.[1] ?? null;
 
   // Handle ?connected=google redirect back from OAuth
   useEffect(() => {
@@ -357,6 +359,7 @@ function AppContent() {
     window.location.href = '/'; // cookie already set by server
   }
 
+  if (resetToken)  return <AuthShell><ResetPasswordScreen token={resetToken} /></AuthShell>;
   if (inviteToken) return <AuthShell><JoinScreen token={inviteToken} onJoined={handleJoined} /></AuthShell>;
   if (authStatus === 'loading') return <LoadingShell />;
   if (isOnboarding)             return <AuthShell><OnboardingFlow /></AuthShell>;

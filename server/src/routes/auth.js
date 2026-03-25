@@ -330,6 +330,78 @@ router.post('/invite', verifyToken, async (req, res) => {
   }
 });
 
+// ── POST /api/auth/forgot-password ───────────────────────────────────────────
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'email required' });
+
+  try {
+    const userRes = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
+    // Always respond OK to prevent email enumeration
+    if (!userRes.rows.length) return res.json({ ok: true });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    await pool.query(
+      'INSERT INTO password_resets (email, token) VALUES ($1, $2)',
+      [email.toLowerCase(), token]
+    );
+
+    const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password/${token}`;
+    const apiKey = process.env.RESEND_API_KEY;
+    if (apiKey) {
+      const r = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: process.env.EMAIL_FROM || 'Aeramea <noreply@aeramea.com>',
+          to: email,
+          subject: 'Reset your Aeramea password',
+          html: `<p>You requested a password reset for your Aeramea account.</p>
+                 <p><a href="${resetUrl}">Click here to reset your password</a></p>
+                 <p>This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>`,
+        }),
+      });
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        console.error('[forgot-password] Resend error:', body);
+      }
+    } else {
+      console.log(`[forgot-password] No RESEND_API_KEY. Link: ${resetUrl}`);
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[forgot-password]', err);
+    res.status(500).json({ error: 'Failed to send reset email' });
+  }
+});
+
+// ── POST /api/auth/reset-password/:token ─────────────────────────────────────
+router.post('/reset-password/:token', async (req, res) => {
+  const { token } = req.params;
+  const { password } = req.body;
+  if (!password) return res.status(400).json({ error: 'password required' });
+  if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+  try {
+    const resetRes = await pool.query(
+      'SELECT * FROM password_resets WHERE token = $1 AND used = FALSE AND expires_at > NOW()',
+      [token]
+    );
+    const reset = resetRes.rows[0];
+    if (!reset) return res.status(400).json({ error: 'Reset link is invalid or has expired' });
+
+    const hash = await bcrypt.hash(password, 12);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE email = $2', [hash, reset.email]);
+    await pool.query('UPDATE password_resets SET used = TRUE WHERE id = $1', [reset.id]);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[reset-password]', err);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
 // ── PUT /api/auth/account ─────────────────────────────────────────────────────
 router.put('/account', verifyToken, async (req, res) => {
   const { currentPassword, newEmail, newPassword } = req.body;

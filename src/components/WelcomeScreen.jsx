@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { apiFetch } from '../api/client';
 
 const GREEN = '#4FA45A';
 const DARK  = '#111827';
@@ -20,7 +21,72 @@ function Logo() {
   );
 }
 
-function SignInForm({ onBack }) {
+function ForgotPasswordForm({ onBack }) {
+  const [email, setEmail]     = useState('');
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent]       = useState(false);
+  const [error, setError]     = useState('');
+
+  async function handleSubmit() {
+    if (!email.trim()) return;
+    setError('');
+    setLoading(true);
+    try {
+      await apiFetch('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email: email.trim() }) });
+      setSent(true);
+    } catch (err) {
+      setError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1 text-sm text-gray-400 bg-transparent border-none cursor-pointer mb-8 self-start"
+      >
+        ← Back
+      </button>
+      <div className="text-2xl font-extrabold tracking-tight mb-1">Reset password</div>
+      <div className="text-sm text-gray-400 mb-6">
+        Enter your email and we'll send you a link to reset your password.
+      </div>
+
+      {sent ? (
+        <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-4 text-sm text-green-700 font-medium">
+          Check your email — a reset link is on its way. It expires in 1 hour.
+        </div>
+      ) : (
+        <>
+          <div className="space-y-3 mb-5">
+            <input
+              autoFocus
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+              placeholder="Email address"
+              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-gray-400"
+            />
+            {error && <div className="text-xs text-red-500 px-1">{error}</div>}
+          </div>
+          <button
+            onClick={handleSubmit}
+            disabled={loading || !email.trim()}
+            className="w-full font-bold py-3.5 rounded-2xl text-sm border-none cursor-pointer text-white disabled:opacity-50"
+            style={{ background: GREEN }}
+          >
+            {loading ? 'Sending…' : 'Send Reset Link'}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function SignInForm({ onBack, onForgotPassword }) {
   const { signIn } = useApp();
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
@@ -79,7 +145,10 @@ function SignInForm({ onBack }) {
       >
         {loading ? 'Signing in…' : 'Sign In'}
       </button>
-      <button className="text-xs text-gray-400 text-center bg-transparent border-none cursor-pointer">
+      <button
+        onClick={() => onForgotPassword()}
+        className="text-xs text-gray-400 text-center bg-transparent border-none cursor-pointer"
+      >
         Forgot password?
       </button>
     </div>
@@ -168,12 +237,20 @@ function SignUpForm({ onBack, onSuccess }) {
 
 export default function WelcomeScreen() {
   const { startOnboarding } = useApp();
-  const [view, setView] = useState('welcome'); // 'welcome' | 'sign-in' | 'sign-up'
+  const [view, setView] = useState('welcome'); // 'welcome' | 'sign-in' | 'sign-up' | 'forgot'
 
   if (view === 'sign-in') {
     return (
       <div className="p-6 flex flex-col h-full">
-        <SignInForm onBack={() => setView('welcome')} />
+        <SignInForm onBack={() => setView('welcome')} onForgotPassword={() => setView('forgot')} />
+      </div>
+    );
+  }
+
+  if (view === 'forgot') {
+    return (
+      <div className="p-6 flex flex-col h-full">
+        <ForgotPasswordForm onBack={() => setView('sign-in')} />
       </div>
     );
   }
