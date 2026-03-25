@@ -346,7 +346,8 @@ router.post('/forgot-password', async (req, res) => {
       [email.toLowerCase(), token]
     );
 
-    const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password/${token}`;
+    const clientUrl = (process.env.CLIENT_URL || 'http://localhost:5173').split(',')[0].trim();
+    const resetUrl = `${clientUrl}/reset-password/${token}`;
     const apiKey = process.env.RESEND_API_KEY;
     if (apiKey) {
       const r = await fetch('https://api.resend.com/emails', {
