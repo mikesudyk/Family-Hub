@@ -413,12 +413,32 @@ export function AppProvider({ children }) {
     return chores[kidId] || [];
   }
 
+  function choreAppliesToday(chore) {
+    const DAY_ABBRS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const today = new Date();
+    const dayAbbr = DAY_ABBRS[today.getDay()];
+    const r = chore.repeat;
+    if (!r || r === 'once') return true;
+    if (r === 'daily') return true;
+    const EPOCH = new Date('2025-01-06').getTime();
+    const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+    const day = today.getDay();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+    monday.setHours(0, 0, 0, 0);
+    const isBiweeklyActive = Math.round((monday.getTime() - EPOCH) / MS_PER_WEEK) % 2 === 0;
+    if (r === 'biweekly') return isBiweeklyActive;
+    if (r && typeof r === 'object' && r.biweekly) return isBiweeklyActive && r.biweekly.includes(dayAbbr);
+    if (Array.isArray(r)) return r.includes(dayAbbr);
+    return true;
+  }
+
   function doneCount(kidId) {
-    return getChores(kidId).filter(c => c.done).length;
+    return getChores(kidId).filter(c => choreAppliesToday(c) && c.done).length;
   }
 
   function totalCount(kidId) {
-    return getChores(kidId).length;
+    return getChores(kidId).filter(c => choreAppliesToday(c)).length;
   }
 
   function toggleChore(kidId, choreId) {
