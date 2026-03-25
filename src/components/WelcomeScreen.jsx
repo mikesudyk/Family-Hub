@@ -32,7 +32,7 @@ function ForgotPasswordForm({ onBack }) {
     setError('');
     setLoading(true);
     try {
-      await apiFetch('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email: email.trim() }) });
+      await apiFetch('/api/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email: email.trim() }) });
       setSent(true);
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.');

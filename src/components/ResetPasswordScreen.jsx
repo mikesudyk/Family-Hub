@@ -16,7 +16,7 @@ export default function ResetPasswordScreen({ token }) {
     setError('');
     setLoading(true);
     try {
-      await apiFetch(`/auth/reset-password/${token}`, {
+      await apiFetch(`/api/auth/reset-password/${token}`, {
         method: 'POST',
         body: JSON.stringify({ password }),
       });
