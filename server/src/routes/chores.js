@@ -4,9 +4,9 @@ const { broadcast }  = require('../socket');
 
 const router = express.Router();
 
-// Serialize repeat for DB storage (arrays must be JSON strings for VARCHAR column)
+// Serialize repeat for DB storage (arrays and objects must be JSON strings for VARCHAR column)
 function serializeRepeat(repeat) {
-  if (Array.isArray(repeat)) return JSON.stringify(repeat);
+  if (Array.isArray(repeat) || (repeat && typeof repeat === 'object')) return JSON.stringify(repeat);
   return repeat || null;
 }
 

@@ -29,6 +29,7 @@ function appliesToday(chore) {
   if (!r || r === 'once') return true;
   if (r === 'daily') return true;
   if (r === 'biweekly') return isBiweeklyActiveWeek();
+  if (r && typeof r === 'object' && r.biweekly) return isBiweeklyActiveWeek() && r.biweekly.includes(DAY_ABBRS[new Date().getDay()]);
   if (Array.isArray(r)) return r.includes(DAY_ABBRS[new Date().getDay()]);
   return true;
 }
@@ -75,7 +76,7 @@ export default function MyChoresChild({ memberId }) {
             <div className="font-bold text-sm mb-1 text-center">{c.name}</div>
             {(() => {
               const r = parseRepeat(c.repeat);
-              const label = !r || r === 'once' ? null : r === 'daily' ? 'Every day' : r === 'biweekly' ? 'Every other week' : Array.isArray(r) ? r.join(' · ') : null;
+              const label = !r || r === 'once' ? null : r === 'daily' ? 'Every day' : r === 'biweekly' ? 'Every other week' : (r && typeof r === 'object' && r.biweekly) ? `Every other week · ${r.biweekly.join(', ')}` : Array.isArray(r) ? r.join(' · ') : null;
               return label ? <div className="text-xs font-medium text-blue-500 mb-1">{label}</div> : null;
             })()}
             <div className="text-2xl">{c.done ? '✅' : <UncheckedCircle />}</div>
@@ -89,7 +90,7 @@ export default function MyChoresChild({ memberId }) {
           <div className="space-y-1">
             {otherChores.map(c => {
               const r = parseRepeat(c.repeat);
-              const label = !r || r === 'once' ? null : r === 'daily' ? 'Every day' : r === 'biweekly' ? 'Every other week' : Array.isArray(r) ? r.join(' · ') : null;
+              const label = !r || r === 'once' ? null : r === 'daily' ? 'Every day' : r === 'biweekly' ? 'Every other week' : (r && typeof r === 'object' && r.biweekly) ? `Every other week · ${r.biweekly.join(', ')}` : Array.isArray(r) ? r.join(' · ') : null;
               return (
                 <div key={c.id} className="flex items-center gap-2 bg-white rounded-xl px-3 py-2 opacity-50">
                   <span className="text-base">{c.icon}</span>

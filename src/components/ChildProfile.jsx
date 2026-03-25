@@ -50,6 +50,7 @@ function repeatLabel(repeat) {
   if (!r || r === 'once') return null;
   if (r === 'daily') return 'Every day';
   if (r === 'biweekly') return 'Every other week';
+  if (r && typeof r === 'object' && r.biweekly) return `Every other week · ${r.biweekly.join(', ')}`;
   if (Array.isArray(r)) return r.join(' · ');
   return null;
 }
@@ -59,6 +60,7 @@ function choreAppliesOnDay(chore, dayAbbr, isToday, date) {
   if (!r || r === 'once') return isToday;
   if (r === 'daily') return true;
   if (r === 'biweekly') return isBiweeklyActiveWeek(date);
+  if (r && typeof r === 'object' && r.biweekly) return isBiweeklyActiveWeek(date) && r.biweekly.includes(dayAbbr);
   if (Array.isArray(r)) return r.includes(dayAbbr);
   return false;
 }

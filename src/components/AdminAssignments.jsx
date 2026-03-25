@@ -17,6 +17,10 @@ function repeatLabel(repeat) {
   if (!repeat || repeat === 'once') return null;
   if (repeat === 'daily') return 'Every day';
   if (repeat === 'biweekly') return 'Every other week';
+  if (repeat && typeof repeat === 'object' && repeat.biweekly) {
+    const days = repeat.biweekly.join(', ');
+    return `Every other week · ${days}`;
+  }
   if (Array.isArray(repeat)) return repeat.join(', ');
   return null;
 }
@@ -51,7 +55,7 @@ function AddChoreRow({ kidId, allChoreNames, allChores, onAdd }) {
   function handleAdd() {
     let repeat = null;
     if (repeatMode === 'daily') repeat = 'daily';
-    else if (repeatMode === 'biweekly') repeat = 'biweekly';
+    else if (repeatMode === 'biweekly' && selectedDays.length > 0) repeat = { biweekly: [...selectedDays] };
     else if (repeatMode === 'days' && selectedDays.length > 0) repeat = [...selectedDays];
     onAdd(kidId, selectedName, selectedIcon, repeat);
     setStep('closed');
@@ -126,11 +130,11 @@ function AddChoreRow({ kidId, allChoreNames, allChores, onAdd }) {
       </div>
 
       {/* Repeat mode pills */}
-      <div className="flex gap-1.5">
+      <div className="flex gap-1.5 flex-wrap">
         {[{ label: 'Once', value: 'once' }, { label: 'Every day', value: 'daily' }, { label: 'Every other week', value: 'biweekly' }, { label: 'Choose days', value: 'days' }].map(opt => (
           <button
             key={opt.value}
-            onClick={() => setRepeatMode(opt.value)}
+            onClick={() => { setRepeatMode(opt.value); setSelectedDays([]); }}
             className={`text-xs font-semibold px-2.5 py-1 rounded-lg border-none cursor-pointer ${repeatMode === opt.value ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}
           >
             {opt.label}
@@ -138,8 +142,8 @@ function AddChoreRow({ kidId, allChoreNames, allChores, onAdd }) {
         ))}
       </div>
 
-      {/* Day selector */}
-      {repeatMode === 'days' && (
+      {/* Day selector — for specific days or biweekly */}
+      {(repeatMode === 'days' || repeatMode === 'biweekly') && (
         <div className="flex gap-1">
           {DAYS.map(day => (
             <button
@@ -156,7 +160,7 @@ function AddChoreRow({ kidId, allChoreNames, allChores, onAdd }) {
       <div className="flex gap-2">
         <button
           onClick={handleAdd}
-          disabled={repeatMode === 'days' && selectedDays.length === 0}
+          disabled={(repeatMode === 'days' || repeatMode === 'biweekly') && selectedDays.length === 0}
           className="text-xs font-semibold bg-gray-900 text-white px-4 py-1.5 rounded-lg border-none cursor-pointer disabled:opacity-40"
         >
           Add
@@ -170,13 +174,14 @@ function AddChoreRow({ kidId, allChoreNames, allChores, onAdd }) {
 function EditChoreRow({ chore, onSave, onCancel }) {
   const [name, setName] = useState(chore.name);
   const [icon, setIcon] = useState(chore.icon);
+  const isBiweeklyObj = chore.repeat && typeof chore.repeat === 'object' && chore.repeat.biweekly;
   const [repeatMode, setRepeatMode] = useState(
     !chore.repeat || chore.repeat === 'once' ? 'once'
     : chore.repeat === 'daily' ? 'daily'
-    : chore.repeat === 'biweekly' ? 'biweekly' : 'days'
+    : (chore.repeat === 'biweekly' || isBiweeklyObj) ? 'biweekly' : 'days'
   );
   const [selectedDays, setSelectedDays] = useState(
-    Array.isArray(chore.repeat) ? chore.repeat : []
+    isBiweeklyObj ? chore.repeat.biweekly : Array.isArray(chore.repeat) ? chore.repeat : []
   );
 
   function toggleDay(day) {
@@ -188,7 +193,7 @@ function EditChoreRow({ chore, onSave, onCancel }) {
     if (!trimmed) return;
     let repeat = null;
     if (repeatMode === 'daily') repeat = 'daily';
-    else if (repeatMode === 'biweekly') repeat = 'biweekly';
+    else if (repeatMode === 'biweekly' && selectedDays.length > 0) repeat = { biweekly: [...selectedDays] };
     else if (repeatMode === 'days' && selectedDays.length > 0) repeat = [...selectedDays];
     onSave({ name: trimmed, icon, repeat });
   }
@@ -205,18 +210,18 @@ function EditChoreRow({ chore, onSave, onCancel }) {
           className="flex-1 bg-white rounded-lg px-3 py-1.5 text-sm border-none outline-none"
         />
       </div>
-      <div className="flex gap-1.5">
+      <div className="flex gap-1.5 flex-wrap">
         {[{ label: 'Once', value: 'once' }, { label: 'Every day', value: 'daily' }, { label: 'Every other week', value: 'biweekly' }, { label: 'Choose days', value: 'days' }].map(opt => (
           <button
             key={opt.value}
-            onClick={() => setRepeatMode(opt.value)}
+            onClick={() => { setRepeatMode(opt.value); setSelectedDays([]); }}
             className={`text-xs font-semibold px-2.5 py-1 rounded-lg border-none cursor-pointer ${repeatMode === opt.value ? 'bg-brand text-white' : 'bg-white text-gray-600'}`}
           >
             {opt.label}
           </button>
         ))}
       </div>
-      {repeatMode === 'days' && (
+      {(repeatMode === 'days' || repeatMode === 'biweekly') && (
         <div className="flex gap-1">
           {DAYS.map(day => (
             <button
@@ -232,7 +237,7 @@ function EditChoreRow({ chore, onSave, onCancel }) {
       <div className="flex gap-2">
         <button
           onClick={handleSave}
-          disabled={repeatMode === 'days' && selectedDays.length === 0}
+          disabled={(repeatMode === 'days' || repeatMode === 'biweekly') && selectedDays.length === 0}
           className="text-xs font-semibold bg-brand text-white px-4 py-1.5 rounded-lg border-none cursor-pointer disabled:opacity-40"
         >
           Save
