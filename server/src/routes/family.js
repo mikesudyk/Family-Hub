@@ -121,7 +121,7 @@ router.get('/', async (req, res) => {
       const d = p.date.toISOString().split('T')[0];
       if (!parentPriorities[mid]) parentPriorities[mid] = {};
       if (!parentPriorities[mid][d]) parentPriorities[mid][d] = [];
-      parentPriorities[mid][d].push({ id: p.id, text: p.text, done: p.done });
+      parentPriorities[mid][d].push({ id: p.id, text: p.text, details: p.details || null, done: p.done });
     }
 
     // Meals on deck — flat array (active first, then archived within 3 weeks)

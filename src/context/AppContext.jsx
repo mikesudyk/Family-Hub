@@ -719,18 +719,18 @@ export function AppProvider({ children }) {
     return (parentPriorities[memberId] || {})[date] || [];
   }
 
-  function addParentPriority(memberId, date, text) {
+  function addParentPriority(memberId, date, text, details = null) {
     const tempId = Date.now();
     setParentPriorities(prev => ({
       ...prev,
       [memberId]: {
         ...(prev[memberId] || {}),
-        [date]: [...((prev[memberId] || {})[date] || []), { id: tempId, text, done: false }],
+        [date]: [...((prev[memberId] || {})[date] || []), { id: tempId, text, details, done: false }],
       },
     }));
     apiFetch('/api/todos/priorities', {
       method: 'POST',
-      body: JSON.stringify({ memberId, date, text }),
+      body: JSON.stringify({ memberId, date, text, details }),
     }).then(p => {
       setParentPriorities(prev => ({
         ...prev,
@@ -739,6 +739,22 @@ export function AppProvider({ children }) {
           [date]: ((prev[memberId] || {})[date] || []).filter(x => x.id !== p.id).map(x => x.id === tempId ? { ...x, id: p.id } : x),
         },
       }));
+    }).catch(console.error);
+  }
+
+  function updateParentPriorityDetails(memberId, date, itemId, details) {
+    setParentPriorities(prev => ({
+      ...prev,
+      [memberId]: {
+        ...(prev[memberId] || {}),
+        [date]: ((prev[memberId] || {})[date] || []).map(t =>
+          t.id === itemId ? { ...t, details } : t
+        ),
+      },
+    }));
+    apiFetch(`/api/todos/priorities/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ details }),
     }).catch(console.error);
   }
 
@@ -955,7 +971,7 @@ export function AppProvider({ children }) {
       activeListEvent, assignListEvent, dismissListEvent, getListEventProgress,
       goals, getGoals, addGoal, removeGoal, toggleGoal, updateGoal,
       personalTodos, getPersonalTodos, addPersonalTodo, removePersonalTodo, togglePersonalTodo,
-      parentPriorities, getParentPriorities, addParentPriority, removeParentPriority, toggleParentPriority,
+      parentPriorities, getParentPriorities, addParentPriority, removeParentPriority, toggleParentPriority, updateParentPriorityDetails,
       mealsOnDeck, getMealsOnDeck, getMealsOnDeckHistory, addMealOnDeck, archiveMealOnDeck, removeMealOnDeck,
       familyGoals, toggleFamilyGoal, addFamilyGoal, removeFamilyGoal, updateFamilyGoal,
       meals, getMeal, setMeal,

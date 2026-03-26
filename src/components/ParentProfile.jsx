@@ -565,42 +565,86 @@ function formatPastDate(ds) {
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 }
 
-function PriorityList({ items, memberId, date, toggleParentPriority, removeParentPriority, readOnly = false }) {
+function PriorityItem({ item, memberId, date, toggleParentPriority, removeParentPriority, updateParentPriorityDetails, readOnly }) {
+  const [editingDetails, setEditingDetails] = useState(false);
+  const [detailsDraft, setDetailsDraft] = useState(item.details || '');
+
+  function saveDetails() {
+    const val = detailsDraft.trim() || null;
+    updateParentPriorityDetails(memberId, date, item.id, val);
+    setEditingDetails(false);
+  }
+
+  const isDone = item.done;
+  return (
+    <div className={`mb-1.5 ${isDone ? 'opacity-50' : ''}`}>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => !readOnly && toggleParentPriority(memberId, date, item.id)}
+          className={`w-4 h-4 rounded-full flex-shrink-0 cursor-pointer p-0 ${isDone ? 'border-none bg-green-400' : 'border-2 bg-transparent'}`}
+          style={isDone ? {} : { borderColor: '#F5A624' }}
+        />
+        <span className={`flex-1 text-sm ${isDone ? 'line-through text-gray-400' : 'text-gray-800'}`}>{item.text}</span>
+        {!readOnly && !isDone && (
+          <button
+            onClick={() => { setEditingDetails(true); setDetailsDraft(item.details || ''); }}
+            className="text-gray-300 hover:text-blue-400 bg-transparent border-none cursor-pointer text-xs leading-none"
+            title="Add details"
+          >
+            {item.details ? '✎' : '+'}
+          </button>
+        )}
+        {!readOnly && (
+          <button onClick={() => removeParentPriority(memberId, date, item.id)} className="text-gray-300 hover:text-red-400 bg-transparent border-none cursor-pointer text-lg leading-none">×</button>
+        )}
+      </div>
+      {item.details && !editingDetails && (
+        <div
+          onClick={() => !readOnly && !isDone && (setEditingDetails(true), setDetailsDraft(item.details || ''))}
+          className={`ml-6 mt-0.5 text-xs text-gray-400 ${!readOnly && !isDone ? 'cursor-pointer' : ''}`}
+        >
+          {item.details}
+        </div>
+      )}
+      {editingDetails && (
+        <div className="ml-6 mt-1 flex items-center gap-2">
+          <input
+            autoFocus
+            value={detailsDraft}
+            onChange={e => setDetailsDraft(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') saveDetails(); if (e.key === 'Escape') setEditingDetails(false); }}
+            placeholder="Add details… (optional)"
+            className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-blue-400"
+          />
+          <button onClick={saveDetails} className="text-xs font-semibold text-white bg-gray-900 px-2.5 py-1 rounded-lg border-none cursor-pointer">Save</button>
+          <button onClick={() => setEditingDetails(false)} className="text-xs text-gray-400 bg-transparent border-none cursor-pointer">Cancel</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PriorityList({ items, memberId, date, toggleParentPriority, removeParentPriority, updateParentPriorityDetails, readOnly = false }) {
   const active = items.filter(t => !t.done);
   const done   = items.filter(t => t.done);
   if (items.length === 0) return null;
   return (
     <>
       {active.length > 0 && (
-        <div className="space-y-1.5 mb-1.5">
+        <div className="mb-1.5">
           {active.map(item => (
-            <div key={item.id} className="flex items-center gap-2">
-              <button
-                onClick={() => !readOnly && toggleParentPriority(memberId, date, item.id)}
-                className="w-4 h-4 rounded-full border-2 flex-shrink-0 bg-transparent cursor-pointer p-0"
-                style={{ borderColor: '#F5A624' }}
-              />
-              <span className="flex-1 text-sm text-gray-800">{item.text}</span>
-              {!readOnly && (
-                <button onClick={() => removeParentPriority(memberId, date, item.id)} className="text-gray-300 hover:text-red-400 bg-transparent border-none cursor-pointer text-lg leading-none">×</button>
-              )}
-            </div>
+            <PriorityItem key={item.id} item={item} memberId={memberId} date={date}
+              toggleParentPriority={toggleParentPriority} removeParentPriority={removeParentPriority}
+              updateParentPriorityDetails={updateParentPriorityDetails} readOnly={readOnly} />
           ))}
         </div>
       )}
       {done.length > 0 && (
-        <div className="space-y-1.5 mb-1.5">
+        <div className="mb-1.5">
           {done.map(item => (
-            <div key={item.id} className="flex items-center gap-2 opacity-50">
-              <button
-                onClick={() => !readOnly && toggleParentPriority(memberId, date, item.id)}
-                className="w-4 h-4 rounded-full flex-shrink-0 cursor-pointer border-none bg-green-400 p-0"
-              />
-              <span className="flex-1 text-sm line-through text-gray-400">{item.text}</span>
-              {!readOnly && (
-                <button onClick={() => removeParentPriority(memberId, date, item.id)} className="text-gray-300 bg-transparent border-none cursor-pointer text-lg leading-none">×</button>
-              )}
-            </div>
+            <PriorityItem key={item.id} item={item} memberId={memberId} date={date}
+              toggleParentPriority={toggleParentPriority} removeParentPriority={removeParentPriority}
+              updateParentPriorityDetails={updateParentPriorityDetails} readOnly={readOnly} />
           ))}
         </div>
       )}
@@ -609,7 +653,7 @@ function PriorityList({ items, memberId, date, toggleParentPriority, removeParen
 }
 
 function TopPriorities({ memberId }) {
-  const { getParentPriorities, addParentPriority, removeParentPriority, toggleParentPriority } = useApp();
+  const { getParentPriorities, addParentPriority, removeParentPriority, toggleParentPriority, updateParentPriorityDetails } = useApp();
   const today = new Date().toISOString().split('T')[0];
   const pastDates = Array.from({ length: 3 }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() - (i + 1));
@@ -618,6 +662,7 @@ function TopPriorities({ memberId }) {
   const todayItems = getParentPriorities(memberId, today);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState('');
+  const [detailsDraft, setDetailsDraft] = useState('');
   const [showHistory, setShowHistory] = useState(false);
 
   const atLimit = todayItems.length >= 3;
@@ -625,8 +670,9 @@ function TopPriorities({ memberId }) {
   function handleAdd() {
     const text = draft.trim();
     if (!text || atLimit) return;
-    addParentPriority(memberId, today, text);
+    addParentPriority(memberId, today, text, detailsDraft.trim() || null);
     setDraft('');
+    setDetailsDraft('');
     setAdding(false);
   }
 
@@ -653,20 +699,32 @@ function TopPriorities({ memberId }) {
         date={today}
         toggleParentPriority={toggleParentPriority}
         removeParentPriority={removeParentPriority}
+        updateParentPriorityDetails={updateParentPriorityDetails}
       />
 
       {adding ? (
-        <div className="flex items-center gap-2 mt-1">
+        <div className="mt-1 space-y-1.5">
+          <div className="flex items-center gap-2">
+            <input
+              autoFocus
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') { setAdding(false); setDraft(''); setDetailsDraft(''); } }}
+              placeholder="What's the priority?"
+              className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-blue-400"
+            />
+          </div>
           <input
-            autoFocus
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') { setAdding(false); setDraft(''); } }}
-            placeholder="What's the priority?"
-            className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-blue-400"
+            value={detailsDraft}
+            onChange={e => setDetailsDraft(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') { setAdding(false); setDraft(''); setDetailsDraft(''); } }}
+            placeholder="Details… (optional)"
+            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-blue-400"
           />
-          <button onClick={handleAdd} className="text-xs font-semibold text-white bg-gray-900 px-3 py-1.5 rounded-lg border-none cursor-pointer">Add</button>
-          <button onClick={() => { setAdding(false); setDraft(''); }} className="text-xs text-gray-400 bg-transparent border-none cursor-pointer">Cancel</button>
+          <div className="flex gap-2">
+            <button onClick={handleAdd} className="text-xs font-semibold text-white bg-gray-900 px-3 py-1.5 rounded-lg border-none cursor-pointer">Add</button>
+            <button onClick={() => { setAdding(false); setDraft(''); setDetailsDraft(''); }} className="text-xs text-gray-400 bg-transparent border-none cursor-pointer">Cancel</button>
+          </div>
         </div>
       ) : !atLimit && (
         <button onClick={() => setAdding(true)} className="text-xs font-semibold text-blue-500 bg-transparent border-none cursor-pointer mt-0.5">
@@ -686,6 +744,7 @@ function TopPriorities({ memberId }) {
               date={date}
               toggleParentPriority={toggleParentPriority}
               removeParentPriority={removeParentPriority}
+              updateParentPriorityDetails={updateParentPriorityDetails}
               readOnly
             />
           </div>

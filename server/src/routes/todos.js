@@ -57,19 +57,37 @@ router.delete('/personal/:id', async (req, res) => {
 
 router.post('/priorities', async (req, res) => {
   const { familyId } = req;
-  const { memberId, date, text } = req.body;
+  const { memberId, date, text, details } = req.body;
   if (!memberId || !date || !text) return res.status(400).json({ error: 'memberId, date, text required' });
   try {
     const r = await pool.query(
-      'INSERT INTO parent_priorities (family_id, member_id, date, text) VALUES ($1,$2,$3,$4) RETURNING *',
-      [familyId, memberId, date, text]
+      'INSERT INTO parent_priorities (family_id, member_id, date, text, details) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+      [familyId, memberId, date, text, details || null]
     );
     const p = r.rows[0];
-    const out = { id: p.id, memberId: p.member_id, date, text: p.text, done: false };
+    const out = { id: p.id, memberId: p.member_id, date, text: p.text, details: p.details || null, done: false };
     broadcast(familyId, 'priority:added', out);
     res.status(201).json(out);
   } catch (err) {
     res.status(500).json({ error: 'Failed to add priority' });
+  }
+});
+
+router.put('/priorities/:id', async (req, res) => {
+  const { familyId } = req;
+  const { details } = req.body;
+  try {
+    const r = await pool.query(
+      'UPDATE parent_priorities SET details = $1 WHERE id = $2 AND family_id = $3 RETURNING *',
+      [details || null, req.params.id, familyId]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Priority not found' });
+    const p = r.rows[0];
+    const out = { id: p.id, memberId: p.member_id, date: p.date.toISOString().split('T')[0], details: p.details || null };
+    broadcast(familyId, 'priority:updated', { memberId: p.member_id, date: out.date, priority: out });
+    res.json(out);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update priority' });
   }
 });
 
