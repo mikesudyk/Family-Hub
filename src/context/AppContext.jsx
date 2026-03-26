@@ -743,18 +743,22 @@ export function AppProvider({ children }) {
   }
 
   function updateParentPriorityDetails(memberId, date, itemId, details) {
+    updateParentPriority(memberId, date, itemId, { details });
+  }
+
+  function updateParentPriority(memberId, date, itemId, updates) {
     setParentPriorities(prev => ({
       ...prev,
       [memberId]: {
         ...(prev[memberId] || {}),
         [date]: ((prev[memberId] || {})[date] || []).map(t =>
-          t.id === itemId ? { ...t, details } : t
+          t.id === itemId ? { ...t, ...updates } : t
         ),
       },
     }));
     apiFetch(`/api/todos/priorities/${itemId}`, {
       method: 'PUT',
-      body: JSON.stringify({ details }),
+      body: JSON.stringify(updates),
     }).catch(console.error);
   }
 
@@ -971,7 +975,7 @@ export function AppProvider({ children }) {
       activeListEvent, assignListEvent, dismissListEvent, getListEventProgress,
       goals, getGoals, addGoal, removeGoal, toggleGoal, updateGoal,
       personalTodos, getPersonalTodos, addPersonalTodo, removePersonalTodo, togglePersonalTodo,
-      parentPriorities, getParentPriorities, addParentPriority, removeParentPriority, toggleParentPriority, updateParentPriorityDetails,
+      parentPriorities, getParentPriorities, addParentPriority, removeParentPriority, toggleParentPriority, updateParentPriorityDetails, updateParentPriority,
       mealsOnDeck, getMealsOnDeck, getMealsOnDeckHistory, addMealOnDeck, archiveMealOnDeck, removeMealOnDeck,
       familyGoals, toggleFamilyGoal, addFamilyGoal, removeFamilyGoal, updateFamilyGoal,
       meals, getMeal, setMeal,

@@ -565,66 +565,76 @@ function formatPastDate(ds) {
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 }
 
-function PriorityItem({ item, memberId, date, toggleParentPriority, removeParentPriority, updateParentPriorityDetails, readOnly }) {
-  const [editingDetails, setEditingDetails] = useState(false);
+function PriorityItem({ item, memberId, date, toggleParentPriority, removeParentPriority, updateParentPriority, readOnly }) {
+  const [editing, setEditing] = useState(false);
+  const [textDraft, setTextDraft] = useState(item.text);
   const [detailsDraft, setDetailsDraft] = useState(item.details || '');
 
-  function saveDetails() {
-    const val = detailsDraft.trim() || null;
-    updateParentPriorityDetails(memberId, date, item.id, val);
-    setEditingDetails(false);
+  function openEdit() { setTextDraft(item.text); setDetailsDraft(item.details || ''); setEditing(true); }
+
+  function save() {
+    const text = textDraft.trim();
+    if (!text) return;
+    updateParentPriority(memberId, date, item.id, { text, details: detailsDraft.trim() || null });
+    setEditing(false);
   }
 
   const isDone = item.done;
   return (
     <div className={`mb-1.5 ${isDone ? 'opacity-50' : ''}`}>
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => !readOnly && toggleParentPriority(memberId, date, item.id)}
-          className={`w-4 h-4 rounded-full flex-shrink-0 cursor-pointer p-0 ${isDone ? 'border-none bg-green-400' : 'border-2 bg-transparent'}`}
-          style={isDone ? {} : { borderColor: '#F5A624' }}
-        />
-        <span className={`flex-1 text-sm ${isDone ? 'line-through text-gray-400' : 'text-gray-800'}`}>{item.text}</span>
-        {!readOnly && !isDone && (
-          <button
-            onClick={() => { setEditingDetails(true); setDetailsDraft(item.details || ''); }}
-            className="text-gray-300 hover:text-blue-400 bg-transparent border-none cursor-pointer text-xs leading-none"
-            title="Add details"
-          >
-            {item.details ? '✎' : '+'}
-          </button>
-        )}
-        {!readOnly && (
-          <button onClick={() => removeParentPriority(memberId, date, item.id)} className="text-gray-300 hover:text-red-400 bg-transparent border-none cursor-pointer text-lg leading-none">×</button>
-        )}
-      </div>
-      {item.details && !editingDetails && (
-        <div
-          onClick={() => !readOnly && !isDone && (setEditingDetails(true), setDetailsDraft(item.details || ''))}
-          className={`ml-6 mt-0.5 text-xs text-gray-400 ${!readOnly && !isDone ? 'cursor-pointer' : ''}`}
-        >
-          {item.details}
-        </div>
-      )}
-      {editingDetails && (
-        <div className="ml-6 mt-1 flex items-center gap-2">
+      {editing ? (
+        <div className="space-y-1.5">
           <input
             autoFocus
+            value={textDraft}
+            onChange={e => setTextDraft(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Escape') setEditing(false); }}
+            placeholder="What's the priority?"
+            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-blue-400"
+          />
+          <input
             value={detailsDraft}
             onChange={e => setDetailsDraft(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') saveDetails(); if (e.key === 'Escape') setEditingDetails(false); }}
-            placeholder="Add details… (optional)"
-            className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-blue-400"
+            onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
+            placeholder="Details… (optional)"
+            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-blue-400"
           />
-          <button onClick={saveDetails} className="text-xs font-semibold text-white bg-gray-900 px-2.5 py-1 rounded-lg border-none cursor-pointer">Save</button>
-          <button onClick={() => setEditingDetails(false)} className="text-xs text-gray-400 bg-transparent border-none cursor-pointer">Cancel</button>
+          <div className="flex gap-2">
+            <button onClick={save} className="text-xs font-semibold text-white bg-gray-900 px-2.5 py-1 rounded-lg border-none cursor-pointer">Save</button>
+            <button onClick={() => setEditing(false)} className="text-xs text-gray-400 bg-transparent border-none cursor-pointer">Cancel</button>
+          </div>
         </div>
+      ) : (
+        <>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => !readOnly && toggleParentPriority(memberId, date, item.id)}
+              className={`w-4 h-4 rounded-full flex-shrink-0 cursor-pointer p-0 ${isDone ? 'border-none bg-green-400' : 'border-2 bg-transparent'}`}
+              style={isDone ? {} : { borderColor: '#F5A624' }}
+            />
+            <span className={`flex-1 text-sm ${isDone ? 'line-through text-gray-400' : 'text-gray-800'}`}>{item.text}</span>
+            {!readOnly && !isDone && (
+              <button onClick={openEdit} className="text-gray-300 hover:text-blue-400 bg-transparent border-none cursor-pointer text-xs leading-none" title="Edit">✎</button>
+            )}
+            {!readOnly && (
+              <button onClick={() => removeParentPriority(memberId, date, item.id)} className="text-gray-300 hover:text-red-400 bg-transparent border-none cursor-pointer text-lg leading-none">×</button>
+            )}
+          </div>
+          {item.details && (
+            <div
+              onClick={() => !readOnly && !isDone && openEdit()}
+              className={`ml-6 mt-0.5 text-xs text-gray-400 ${!readOnly && !isDone ? 'cursor-pointer' : ''}`}
+            >
+              {item.details}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
 }
 
-function PriorityList({ items, memberId, date, toggleParentPriority, removeParentPriority, updateParentPriorityDetails, readOnly = false }) {
+function PriorityList({ items, memberId, date, toggleParentPriority, removeParentPriority, updateParentPriority, readOnly = false }) {
   const active = items.filter(t => !t.done);
   const done   = items.filter(t => t.done);
   if (items.length === 0) return null;
@@ -635,7 +645,7 @@ function PriorityList({ items, memberId, date, toggleParentPriority, removeParen
           {active.map(item => (
             <PriorityItem key={item.id} item={item} memberId={memberId} date={date}
               toggleParentPriority={toggleParentPriority} removeParentPriority={removeParentPriority}
-              updateParentPriorityDetails={updateParentPriorityDetails} readOnly={readOnly} />
+              updateParentPriority={updateParentPriority} readOnly={readOnly} />
           ))}
         </div>
       )}
@@ -644,7 +654,7 @@ function PriorityList({ items, memberId, date, toggleParentPriority, removeParen
           {done.map(item => (
             <PriorityItem key={item.id} item={item} memberId={memberId} date={date}
               toggleParentPriority={toggleParentPriority} removeParentPriority={removeParentPriority}
-              updateParentPriorityDetails={updateParentPriorityDetails} readOnly={readOnly} />
+              updateParentPriority={updateParentPriority} readOnly={readOnly} />
           ))}
         </div>
       )}
@@ -653,7 +663,7 @@ function PriorityList({ items, memberId, date, toggleParentPriority, removeParen
 }
 
 function TopPriorities({ memberId }) {
-  const { getParentPriorities, addParentPriority, removeParentPriority, toggleParentPriority, updateParentPriorityDetails } = useApp();
+  const { getParentPriorities, addParentPriority, removeParentPriority, toggleParentPriority, updateParentPriority } = useApp();
   const today = new Date().toISOString().split('T')[0];
   const pastDates = Array.from({ length: 3 }, (_, i) => {
     const d = new Date(); d.setDate(d.getDate() - (i + 1));
@@ -699,7 +709,7 @@ function TopPriorities({ memberId }) {
         date={today}
         toggleParentPriority={toggleParentPriority}
         removeParentPriority={removeParentPriority}
-        updateParentPriorityDetails={updateParentPriorityDetails}
+        updateParentPriority={updateParentPriority}
       />
 
       {adding ? (
@@ -744,7 +754,7 @@ function TopPriorities({ memberId }) {
               date={date}
               toggleParentPriority={toggleParentPriority}
               removeParentPriority={removeParentPriority}
-              updateParentPriorityDetails={updateParentPriorityDetails}
+              updateParentPriority={updateParentPriority}
               readOnly
             />
           </div>
@@ -797,9 +807,8 @@ export default function ParentProfile({ memberId }) {
           {/* Top Priorities */}
           <TopPriorities memberId={memberId} />
 
-          {/* Meals on Deck + Personal To-Dos side by side on larger screens */}
+          {/* Personal To-Dos + Meals on Deck — stacked on mobile, side by side on md+ */}
           <div className="md:grid md:grid-cols-2 md:gap-4">
-            <MealsOnDeck />
             {(() => {
         const todos = getPersonalTodos(memberId);
         const active = todos.filter(t => !t.done);
@@ -866,6 +875,7 @@ export default function ParentProfile({ memberId }) {
           </div>
         );
       })()}
+            <MealsOnDeck />
           </div>
         </>
       )}

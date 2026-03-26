@@ -75,15 +75,20 @@ router.post('/priorities', async (req, res) => {
 
 router.put('/priorities/:id', async (req, res) => {
   const { familyId } = req;
-  const { details } = req.body;
+  const { text, details } = req.body;
   try {
+    const sets = [];
+    const vals = [];
+    if (text !== undefined) { sets.push(`text = $${vals.length + 1}`); vals.push(text); }
+    sets.push(`details = $${vals.length + 1}`); vals.push(details || null);
+    vals.push(req.params.id, familyId);
     const r = await pool.query(
-      'UPDATE parent_priorities SET details = $1 WHERE id = $2 AND family_id = $3 RETURNING *',
-      [details || null, req.params.id, familyId]
+      `UPDATE parent_priorities SET ${sets.join(', ')} WHERE id = $${vals.length - 1} AND family_id = $${vals.length} RETURNING *`,
+      vals
     );
     if (!r.rows.length) return res.status(404).json({ error: 'Priority not found' });
     const p = r.rows[0];
-    const out = { id: p.id, memberId: p.member_id, date: p.date.toISOString().split('T')[0], details: p.details || null };
+    const out = { id: p.id, memberId: p.member_id, date: p.date.toISOString().split('T')[0], text: p.text, details: p.details || null };
     broadcast(familyId, 'priority:updated', { memberId: p.member_id, date: out.date, priority: out });
     res.json(out);
   } catch (err) {
