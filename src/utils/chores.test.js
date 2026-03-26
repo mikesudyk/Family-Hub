@@ -117,15 +117,27 @@ describe('choreAppliesOnDay', () => {
     expect(choreAppliesOnDay(chore, 'Mon', false, inactiveDate)).toBe(false);
   });
 
-  it('biweekly object applies on active weeks and matching days', () => {
+  it('biweekly object applies on active weeks and matching days (no even field = default active weeks)', () => {
     const chore = { repeat: { biweekly: ['Mon', 'Wed'] } };
     expect(choreAppliesOnDay(chore, 'Mon', false, activeDate)).toBe(true);
     expect(choreAppliesOnDay(chore, 'Tue', false, activeDate)).toBe(false);
     expect(choreAppliesOnDay(chore, 'Mon', false, inactiveDate)).toBe(false);
   });
 
+  it('biweekly object with even:true applies on active (even) weeks', () => {
+    const chore = { repeat: { biweekly: ['Mon'], even: true } };
+    expect(choreAppliesOnDay(chore, 'Mon', false, activeDate)).toBe(true);
+    expect(choreAppliesOnDay(chore, 'Mon', false, inactiveDate)).toBe(false);
+  });
+
+  it('biweekly object with even:false applies on inactive (odd) weeks', () => {
+    const chore = { repeat: { biweekly: ['Mon'], even: false } };
+    expect(choreAppliesOnDay(chore, 'Mon', false, activeDate)).toBe(false);
+    expect(choreAppliesOnDay(chore, 'Mon', false, inactiveDate)).toBe(true);
+  });
+
   it('biweekly object from JSON string applies correctly', () => {
-    const chore = { repeat: '{"biweekly":["Mon"]}' };
+    const chore = { repeat: '{"biweekly":["Mon"],"even":true}' };
     expect(choreAppliesOnDay(chore, 'Mon', false, activeDate)).toBe(true);
     expect(choreAppliesOnDay(chore, 'Mon', false, inactiveDate)).toBe(false);
   });

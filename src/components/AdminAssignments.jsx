@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BackButton, EmojiSelect, CHORE_EMOJIS } from './ui';
 import { CHORE_LIBRARY } from '../data/family';
+import { isBiweeklyActiveWeek } from '../utils/chores';
 
 function getChoreIcon(name, allChores) {
   const lib = CHORE_LIBRARY.find(c => c.name.toLowerCase() === name.toLowerCase());
@@ -55,7 +56,7 @@ function AddChoreRow({ kidId, allChoreNames, allChores, onAdd }) {
   function handleAdd() {
     let repeat = null;
     if (repeatMode === 'daily') repeat = 'daily';
-    else if (repeatMode === 'biweekly' && selectedDays.length > 0) repeat = { biweekly: [...selectedDays] };
+    else if (repeatMode === 'biweekly' && selectedDays.length > 0) repeat = { biweekly: [...selectedDays], even: isBiweeklyActiveWeek(new Date()) };
     else if (repeatMode === 'days' && selectedDays.length > 0) repeat = [...selectedDays];
     onAdd(kidId, selectedName, selectedIcon, repeat);
     setStep('closed');
@@ -193,7 +194,12 @@ function EditChoreRow({ chore, onSave, onCancel }) {
     if (!trimmed) return;
     let repeat = null;
     if (repeatMode === 'daily') repeat = 'daily';
-    else if (repeatMode === 'biweekly' && selectedDays.length > 0) repeat = { biweekly: [...selectedDays] };
+    else if (repeatMode === 'biweekly' && selectedDays.length > 0) {
+      // Preserve existing even parity if editing, otherwise default to current week
+      const existingEven = isBiweeklyObj ? chore.repeat.even : undefined;
+      const even = existingEven !== undefined ? existingEven : isBiweeklyActiveWeek(new Date());
+      repeat = { biweekly: [...selectedDays], even };
+    }
     else if (repeatMode === 'days' && selectedDays.length > 0) repeat = [...selectedDays];
     onSave({ name: trimmed, icon, repeat });
   }

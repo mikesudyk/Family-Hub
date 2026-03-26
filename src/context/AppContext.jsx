@@ -428,7 +428,10 @@ export function AppProvider({ children }) {
     monday.setHours(0, 0, 0, 0);
     const isBiweeklyActive = Math.round((monday.getTime() - EPOCH) / MS_PER_WEEK) % 2 === 0;
     if (r === 'biweekly') return isBiweeklyActive;
-    if (r && typeof r === 'object' && r.biweekly) return isBiweeklyActive && r.biweekly.includes(dayAbbr);
+    if (r && typeof r === 'object' && r.biweekly) {
+      const weekActive = r.even !== undefined ? isBiweeklyActive === r.even : isBiweeklyActive;
+      return weekActive && r.biweekly.includes(dayAbbr);
+    }
     if (Array.isArray(r)) return r.includes(dayAbbr);
     return true;
   }

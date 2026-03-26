@@ -38,7 +38,11 @@ export function choreAppliesOnDay(chore, dayAbbr, isToday, date) {
   if (!r || r === 'once') return isToday;
   if (r === 'daily') return true;
   if (r === 'biweekly') return isBiweeklyActiveWeek(date);
-  if (r && typeof r === 'object' && r.biweekly) return isBiweeklyActiveWeek(date) && r.biweekly.includes(dayAbbr);
+  if (r && typeof r === 'object' && r.biweekly) {
+    // r.even records which week parity the chore was created on; if absent, default to even (active) weeks
+    const weekActive = r.even !== undefined ? isBiweeklyActiveWeek(date) === r.even : isBiweeklyActiveWeek(date);
+    return weekActive && r.biweekly.includes(dayAbbr);
+  }
   if (Array.isArray(r)) return r.includes(dayAbbr);
   return false;
 }
