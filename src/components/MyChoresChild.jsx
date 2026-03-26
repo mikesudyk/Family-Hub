@@ -1,39 +1,6 @@
 import { useApp } from '../context/AppContext';
 import { BackButton, UncheckedCircle } from './ui';
-
-const DAY_ABBRS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-function parseRepeat(repeat) {
-  if (!repeat || repeat === 'once' || repeat === 'daily' || repeat === 'biweekly') return repeat;
-  if (Array.isArray(repeat)) return repeat;
-  if (typeof repeat === 'object') return repeat;
-  try { const a = JSON.parse(repeat); if (Array.isArray(a) || (a && typeof a === 'object')) return a; } catch {}
-  // PostgreSQL array formats: {"Mon","Wed"} or {Mon,Wed}
-  const s = repeat.trim();
-  const inner = s.startsWith('{') && s.endsWith('}') ? s.slice(1, -1) : s;
-  return inner.split(',').map(v => v.trim().replace(/^"|"$/g, '')).filter(Boolean);
-}
-
-function isBiweeklyActiveWeek(date = new Date()) {
-  const EPOCH = new Date('2025-01-06').getTime();
-  const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
-  const d = new Date(date);
-  const day = d.getDay();
-  const monday = new Date(d);
-  monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
-  monday.setHours(0, 0, 0, 0);
-  return Math.round((monday.getTime() - EPOCH) / MS_PER_WEEK) % 2 === 0;
-}
-
-function appliesToday(chore) {
-  const r = parseRepeat(chore.repeat);
-  if (!r || r === 'once') return true;
-  if (r === 'daily') return true;
-  if (r === 'biweekly') return isBiweeklyActiveWeek();
-  if (r && typeof r === 'object' && r.biweekly) return isBiweeklyActiveWeek() && r.biweekly.includes(DAY_ABBRS[new Date().getDay()]);
-  if (Array.isArray(r)) return r.includes(DAY_ABBRS[new Date().getDay()]);
-  return true;
-}
+import { appliesToday } from '../utils/chores';
 
 export default function MyChoresChild({ memberId }) {
   const { navigate, getMember, getChores, doneCount, toggleChore } = useApp();
