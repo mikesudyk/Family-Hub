@@ -620,9 +620,11 @@ function TopPriorities({ memberId }) {
   const [draft, setDraft] = useState('');
   const [showHistory, setShowHistory] = useState(false);
 
+  const atLimit = todayItems.length >= 3;
+
   function handleAdd() {
     const text = draft.trim();
-    if (!text) return;
+    if (!text || atLimit) return;
     addParentPriority(memberId, today, text);
     setDraft('');
     setAdding(false);
@@ -666,7 +668,7 @@ function TopPriorities({ memberId }) {
           <button onClick={handleAdd} className="text-xs font-semibold text-white bg-gray-900 px-3 py-1.5 rounded-lg border-none cursor-pointer">Add</button>
           <button onClick={() => { setAdding(false); setDraft(''); }} className="text-xs text-gray-400 bg-transparent border-none cursor-pointer">Cancel</button>
         </div>
-      ) : (
+      ) : !atLimit && (
         <button onClick={() => setAdding(true)} className="text-xs font-semibold text-blue-500 bg-transparent border-none cursor-pointer mt-0.5">
           + Add priority
         </button>
