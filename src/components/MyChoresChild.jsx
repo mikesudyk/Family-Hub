@@ -6,7 +6,8 @@ const DAY_ABBRS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 function parseRepeat(repeat) {
   if (!repeat || repeat === 'once' || repeat === 'daily' || repeat === 'biweekly') return repeat;
   if (Array.isArray(repeat)) return repeat;
-  try { const a = JSON.parse(repeat); if (Array.isArray(a)) return a; } catch {}
+  if (typeof repeat === 'object') return repeat;
+  try { const a = JSON.parse(repeat); if (Array.isArray(a) || (a && typeof a === 'object')) return a; } catch {}
   // PostgreSQL array formats: {"Mon","Wed"} or {Mon,Wed}
   const s = repeat.trim();
   const inner = s.startsWith('{') && s.endsWith('}') ? s.slice(1, -1) : s;
