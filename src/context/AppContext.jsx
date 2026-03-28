@@ -686,7 +686,7 @@ export function AppProvider({ children }) {
       ...prev,
       [kidId]: [...(prev[kidId] || []), { id: tempId, text, done: false }],
     }));
-    apiFetch('/api/todos', {
+    apiFetch('/api/todos/personal', {
       method: 'POST',
       body: JSON.stringify({ memberId: kidId, text }),
     }).then(t => {
@@ -702,7 +702,7 @@ export function AppProvider({ children }) {
       ...prev,
       [kidId]: (prev[kidId] || []).filter(t => t.id !== todoId),
     }));
-    apiFetch(`/api/todos/${todoId}`, { method: 'DELETE' }).catch(console.error);
+    apiFetch(`/api/todos/personal/${todoId}`, { method: 'DELETE' }).catch(console.error);
   }
 
   function togglePersonalTodo(kidId, todoId) {
@@ -710,7 +710,7 @@ export function AppProvider({ children }) {
       ...prev,
       [kidId]: (prev[kidId] || []).map(t => t.id === todoId ? { ...t, done: !t.done } : t),
     }));
-    apiFetch(`/api/todos/${todoId}/toggle`, { method: 'PUT' }).catch(console.error);
+    apiFetch(`/api/todos/personal/${todoId}/toggle`, { method: 'PUT' }).catch(console.error);
   }
 
   // ── Parent priorities ────────────────────────────────────────────────────────
