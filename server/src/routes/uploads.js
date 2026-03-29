@@ -1,7 +1,7 @@
 const express = require('express');
 const multer  = require('multer');
 const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 
 const router  = express.Router();
 const upload  = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -22,7 +22,7 @@ router.post('/image', upload.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file provided' });
 
   const ext = req.file.mimetype.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
-  const key = `images/${uuidv4()}.${ext}`;
+  const key = `images/${randomUUID()}.${ext}`;
 
   try {
     await s3.send(new PutObjectCommand({
