@@ -506,15 +506,15 @@ export function AppProvider({ children }) {
       });
       return updated;
     });
-    apiFetch(`/api/chores/lists/${listId}/assign`, {
+    apiFetch('/api/chores/assign-list', {
       method: 'POST',
-      body: JSON.stringify({ assignments }),
+      body: JSON.stringify({ listId, listName, assignments }),
     }).catch(console.error);
   }
 
   function dismissListEvent() {
     setActiveListEvent(null);
-    apiFetch('/api/chores/lists/dismiss', { method: 'POST' }).catch(console.error);
+    apiFetch('/api/chores/dismiss-list', { method: 'DELETE' }).catch(console.error);
   }
 
   function getListEventProgress(eventId) {
