@@ -12,14 +12,30 @@ export default function MealForm() {
   const [newIngredient, setNewIngredient] = useState('');
   const [url, setUrl]           = useState(existing?.url || '');
   const [recipe, setRecipe]     = useState(existing?.recipe || '');
-  const [image, setImage]       = useState(existing?.image || null);
+  const [image, setImage]         = useState(existing?.image || null);
+  const [uploading, setUploading] = useState(false);
 
-  function handleImageChange(e) {
+  async function handleImageChange(e) {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => setImage(ev.target.result);
-    reader.readAsDataURL(file);
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('image', file);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/uploads/image`, {
+        method: 'POST',
+        body: form,
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Upload failed');
+      const { url } = await res.json();
+      setImage(url);
+    } catch (err) {
+      console.error(err);
+      alert('Image upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+    }
   }
 
   function addIngredient() {
@@ -75,7 +91,11 @@ export default function MealForm() {
 
       {/* Photo */}
       <label className={labelClass}>Photo</label>
-      {image ? (
+      {uploading ? (
+        <div className="flex items-center justify-center w-full h-24 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-gray-400 text-sm mb-1">
+          Uploading…
+        </div>
+      ) : image ? (
         <div className="relative mb-2">
           <img src={image} alt="Meal" className="w-full h-40 object-cover rounded-xl" />
           <button
@@ -152,7 +172,7 @@ export default function MealForm() {
 
       <button
         onClick={handleSave}
-        disabled={!title.trim()}
+        disabled={!title.trim() || uploading}
         className="w-full bg-gray-900 text-white font-bold text-base rounded-2xl py-4 cursor-pointer border-none mt-6 disabled:opacity-40"
       >
         {existing ? 'Save Changes' : 'Add Meal'}

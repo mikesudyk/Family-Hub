@@ -8,15 +8,15 @@ const router = express.Router();
 
 router.post('/library', async (req, res) => {
   const { familyId } = req;
-  const { title, photoUrl, ingredients = [] } = req.body;
+  const { title, image, ingredients = [], url, recipe } = req.body;
   if (!title) return res.status(400).json({ error: 'title required' });
   try {
     const r = await pool.query(
-      'INSERT INTO meal_library (family_id, title, photo_url, ingredients) VALUES ($1,$2,$3,$4) RETURNING *',
-      [familyId, title, photoUrl || null, ingredients]
+      'INSERT INTO meal_library (family_id, title, photo_url, ingredients, url, recipe) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+      [familyId, title, image || null, ingredients, url || null, recipe || null]
     );
     const m = r.rows[0];
-    const out = { id: m.id, title: m.title, photoUrl: m.photo_url, ingredients: m.ingredients || [] };
+    const out = { id: m.id, title: m.title, image: m.photo_url, ingredients: m.ingredients || [], url: m.url || null, recipe: m.recipe || null };
     broadcast(familyId, 'meal:added', out);
     res.status(201).json(out);
   } catch (err) {
@@ -26,18 +26,20 @@ router.post('/library', async (req, res) => {
 
 router.put('/library/:id', async (req, res) => {
   const { familyId } = req;
-  const { title, photoUrl, ingredients } = req.body;
+  const { title, image, ingredients, url, recipe } = req.body;
   try {
     const r = await pool.query(
       `UPDATE meal_library
        SET title       = COALESCE($1, title),
            photo_url   = COALESCE($2, photo_url),
-           ingredients = COALESCE($3, ingredients)
-       WHERE id = $4 AND family_id = $5 RETURNING *`,
-      [title, photoUrl, ingredients, req.params.id, familyId]
+           ingredients = COALESCE($3, ingredients),
+           url         = $4,
+           recipe      = $5
+       WHERE id = $6 AND family_id = $7 RETURNING *`,
+      [title, image, ingredients, url || null, recipe || null, req.params.id, familyId]
     );
     const m = r.rows[0];
-    const out = { id: m.id, title: m.title, photoUrl: m.photo_url, ingredients: m.ingredients || [] };
+    const out = { id: m.id, title: m.title, image: m.photo_url, ingredients: m.ingredients || [], url: m.url || null, recipe: m.recipe || null };
     broadcast(familyId, 'meal:updated', out);
     res.json(out);
   } catch (err) {

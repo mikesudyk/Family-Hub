@@ -1,0 +1,2 @@
+ALTER TABLE meal_library ADD COLUMN IF NOT EXISTS recipe TEXT;
+ALTER TABLE meal_library ADD COLUMN IF NOT EXISTS url    TEXT;

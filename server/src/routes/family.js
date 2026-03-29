@@ -176,7 +176,7 @@ router.get('/', async (req, res) => {
       personalTodos,
       parentPriorities,
       mealLibrary: mealLibRes.rows.map(m => ({
-        id: m.id, title: m.title, photoUrl: m.photo_url, ingredients: m.ingredients || [],
+        id: m.id, title: m.title, image: m.photo_url, ingredients: m.ingredients || [], url: m.url || null, recipe: m.recipe || null,
       })),
       mealsOnDeck,
       meals,

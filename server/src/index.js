@@ -23,6 +23,7 @@ const calendarRoutes     = require('./routes/calendar');
 const calendarSyncRoutes = require('./routes/calendarSync');
 const settingsRoutes     = require('./routes/settings');
 const feedbackRoutes     = require('./routes/feedback');
+const uploadsRoutes      = require('./routes/uploads');
 
 const app    = express();
 const server = http.createServer(app);
@@ -89,6 +90,7 @@ app.use('/api/calendar', calendarSyncRoutes); // /connect, /callback, /webhook â
 app.use('/api/calendar', verifyToken, calendarRoutes);
 app.use('/api/settings', verifyToken, settingsRoutes);
 app.use('/api/feedback', verifyToken, feedbackRoutes);
+app.use('/api/uploads', verifyToken, uploadsRoutes);
 
 // Socket.io â€” verify JWT from httpOnly cookie
 io.use((socket, next) => {
