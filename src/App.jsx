@@ -45,7 +45,6 @@ function Router() {
       const member = getMember(screenData);
       if (!member) return <FamilyHub />;
       const tier = getTier(member);
-      if (tier === 'child') return <MyChoresChild memberId={member.id} />;
       if (tier === 'admin') return <ParentProfile memberId={member.id} />;
       return <ChildProfile memberId={member.id} />;
     }
