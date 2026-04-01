@@ -61,7 +61,19 @@ export function AppProvider({ children }) {
     if (data.printMode) setPrintMode(data.printMode);
     if (data.clock24h !== undefined) setClock24h(data.clock24h);
     if (data.activeListEvent) setActiveListEvent(data.activeListEvent);
-    setChores(data.chores || {});
+    const todayLocal = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local tz
+    const rawChores = data.chores || {};
+    const resetChores = Object.fromEntries(
+      Object.entries(rawChores).map(([memberId, list]) => [
+        memberId,
+        list.map(c => {
+          if (!c.done || !c.doneAt) return c;
+          const doneDate = new Date(c.doneAt).toLocaleDateString('en-CA');
+          return doneDate === todayLocal ? c : { ...c, done: false, doneAt: undefined };
+        }),
+      ])
+    );
+    setChores(resetChores);
     setChoreLists(data.choreLists || []);
     setGoals(data.goals || {});
     setFamilyGoals(data.familyGoals || { active: [], history: [] });
