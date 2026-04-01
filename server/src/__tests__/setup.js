@@ -1,7 +1,7 @@
-const bcrypt  = require('bcryptjs');
-const jwt     = require('jsonwebtoken');
-const { beforeAll, beforeEach, afterAll } = require('vitest');
-const { pool, runMigrations } = require('../db');
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { beforeAll, beforeEach, afterAll } from 'vitest';
+import { pool, runMigrations } from '../db.js';
 
 // Run all migrations once before the test suite.
 // Migrations use CREATE TABLE IF NOT EXISTS so this is safe to call repeatedly.
@@ -29,7 +29,7 @@ afterAll(async () => {
  *   const { token, familyId, memberId, userId } = await createTestContext();
  *   request(app).post('/api/chores').set('Authorization', `Bearer ${token}`)
  */
-async function createTestContext({ memberName = 'Test Parent', role = 'admin', tier = 'admin' } = {}) {
+export async function createTestContext({ memberName = 'Test Parent', role = 'admin', tier = 'admin' } = {}) {
   // 1. Family
   const familyRes = await pool.query(
     "INSERT INTO families (hub_name) VALUES ('Test Hub') RETURNING id"
@@ -68,5 +68,3 @@ async function createTestContext({ memberName = 'Test Parent', role = 'admin', t
 
   return { token, familyId, memberId, userId };
 }
-
-module.exports = { createTestContext };

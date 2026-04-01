@@ -1,5 +1,5 @@
-const jwt  = require('jsonwebtoken');
-const { pool } = require('../db');
+import jwt from 'jsonwebtoken';
+import { pool } from '../db.js';
 
 /**
  * Creates a complete test fixture: family, parent user, 2 child members,
@@ -11,7 +11,7 @@ const { pool } = require('../db');
  *
  * @returns {{ familyId, userId, memberId, member2Id, token }}
  */
-async function createTestFamily() {
+export async function createTestFamily() {
   // Family
   const familyRes = await pool.query(
     "INSERT INTO families (hub_name) VALUES ('Test Family') RETURNING id"
@@ -57,5 +57,3 @@ async function createTestFamily() {
 
   return { familyId, userId, memberId, member2Id, token };
 }
-
-module.exports = { createTestFamily };

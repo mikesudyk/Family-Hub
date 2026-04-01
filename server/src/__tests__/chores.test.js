@@ -1,8 +1,8 @@
-const request = require('supertest');
-const { describe, it, expect } = require('vitest');
-const { app }  = require('../app');
-const { pool } = require('../db');
-const { createTestFamily } = require('./helpers');
+import request from 'supertest';
+import { describe, it, expect } from 'vitest';
+import { app } from '../app.js';
+import { pool } from '../db.js';
+import { createTestFamily } from './helpers.js';
 
 // ─── Helper: create a chore via the API ──────────────────────────────────────
 async function createChore(token, memberId, overrides = {}) {
